@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'routes/app_routes.dart';
+import 'screens/splash_screen.dart';
 
 void main() {
   runApp(const OpenAtendeApp());
@@ -17,7 +18,7 @@ class OpenAtendeApp extends StatelessWidget {
         useMaterial3: true,
       ),
       routes: AppRoutes.routes,
-      home: const LoginPage(),
+      home: const SplashScreen(),
     );
   }
 }
