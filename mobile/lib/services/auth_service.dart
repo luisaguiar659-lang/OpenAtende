@@ -1,22 +1,29 @@
-class AuthService {
-  String? _token;
+import '../models/auth_session.dart';
 
-  bool get isLoggedIn => _token != null;
+class AuthService {
+  AuthSession? _session;
+
+  bool get isLoggedIn => _session != null;
 
   Future<bool> login(String email, String password) async {
     // Preparado para integração com API de autenticação.
-    // Futuramente receberá JWT do backend.
+    // Futuramente receberá JWT real do backend.
     if (email.isNotEmpty && password.isNotEmpty) {
-      _token = 'temporary_token';
+      _session = AuthSession(
+        token: 'temporary_token',
+        email: email,
+      );
       return true;
     }
 
     return false;
   }
 
-  String? get token => _token;
+  AuthSession? get session => _session;
+
+  String? get token => _session?.token;
 
   void logout() {
-    _token = null;
+    _session = null;
   }
 }
