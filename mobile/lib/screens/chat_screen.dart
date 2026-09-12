@@ -32,38 +32,25 @@ class _ChatScreenState extends State<ChatScreen> {
         children: [
           Expanded(
             child: ListView.builder(
-              padding: const EdgeInsets.all(12),
               itemCount: messages.length,
               itemBuilder: (context, index) {
                 final message = messages[index];
-
                 return MessageBubble(
                   text: message.text,
                   time: message.time,
-                  isAgent: message.sender == 'agent',
+                  isAgent: message.isAgent,
                 );
               },
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: controller,
-                    decoration: const InputDecoration(
-                      hintText: 'Digite uma mensagem...',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                ),
-                IconButton(
-                  onPressed: sendMessage,
-                  icon: const Icon(Icons.send),
-                )
-              ],
-            ),
+          Row(
+            children: [
+              Expanded(child: TextField(controller: controller)),
+              IconButton(
+                onPressed: sendMessage,
+                icon: const Icon(Icons.send),
+              )
+            ],
           )
         ],
       ),
