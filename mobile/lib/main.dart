@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'routes/app_routes.dart';
 
 void main() {
   runApp(const OpenAtendeApp());
@@ -15,6 +16,7 @@ class OpenAtendeApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
       ),
+      routes: AppRoutes.routes,
       home: const LoginPage(),
     );
   }
@@ -36,7 +38,9 @@ class LoginPage extends StatelessWidget {
             const TextField(decoration: InputDecoration(labelText: 'Senha'), obscureText: true),
             const SizedBox(height: 20),
             ElevatedButton(
-              onPressed: () {},
+              onPressed: () {
+                Navigator.pushNamed(context, '/conversations');
+              },
               child: const Text('ENTRAR'),
             )
           ],
