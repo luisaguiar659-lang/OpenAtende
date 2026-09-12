@@ -1,7 +1,29 @@
 import 'package:flutter/material.dart';
+import '../services/storage_service.dart';
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final emailController = TextEditingController();
+  final passwordController = TextEditingController();
+  bool loading = false;
+
+  Future<void> login() async {
+    setState(() => loading = true);
+
+    await StorageService().saveSession(
+      'demo-token',
+      emailController.text,
+    );
+
+    if (!mounted) return;
+    Navigator.pushReplacementNamed(context, '/conversations');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -12,14 +34,14 @@ class LoginScreen extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text('OPENATENDE', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+              const Text('OPENATENDE', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
               const SizedBox(height: 30),
-              const TextField(decoration: InputDecoration(labelText: 'Email')),
-              const TextField(decoration: InputDecoration(labelText: 'Senha'), obscureText: true),
+              TextField(controller: emailController, decoration: const InputDecoration(labelText: 'Email')),
+              TextField(controller: passwordController, obscureText: true, decoration: const InputDecoration(labelText: 'Senha')),
               const SizedBox(height: 20),
               ElevatedButton(
-                onPressed: () => Navigator.pushReplacementNamed(context, '/conversations'),
-                child: const Text('ENTRAR'),
+                onPressed: loading ? null : login,
+                child: Text(loading ? 'ENTRANDO...' : 'ENTRAR'),
               )
             ],
           ),
