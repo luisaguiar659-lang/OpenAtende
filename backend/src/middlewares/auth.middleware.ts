@@ -16,7 +16,11 @@ export function authMiddleware(req: AuthRequest, res: Response, next: NextFuncti
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || "secret") as AuthRequest["user"];
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET || "openatende-secret"
+    ) as AuthRequest["user"];
+
     req.user = decoded;
     next();
   } catch {
