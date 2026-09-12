@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../widgets/message_bubble.dart';
+import '../services/message_service.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -10,27 +11,21 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController controller = TextEditingController();
-
-  final List<Map<String, String>> messages = [
-    {'sender': 'client', 'text': 'Olá, preciso de ajuda', 'time': '10:32'},
-    {'sender': 'agent', 'text': 'Olá! Como posso ajudar?', 'time': '10:33'},
-  ];
+  final MessageService messageService = MessageService();
 
   void sendMessage() {
     if (controller.text.trim().isEmpty) return;
 
     setState(() {
-      messages.add({
-        'sender': 'agent',
-        'text': controller.text,
-        'time': 'agora',
-      });
+      messageService.sendMessage(controller.text);
       controller.clear();
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    final messages = messageService.getMessages();
+
     return Scaffold(
       appBar: AppBar(title: const Text('Atendimento')),
       body: Column(
@@ -43,9 +38,9 @@ class _ChatScreenState extends State<ChatScreen> {
                 final message = messages[index];
 
                 return MessageBubble(
-                  text: message['text'] ?? '',
-                  time: message['time'] ?? '',
-                  isAgent: message['sender'] == 'agent',
+                  text: message.text,
+                  time: message.time,
+                  isAgent: message.sender == 'agent',
                 );
               },
             ),
