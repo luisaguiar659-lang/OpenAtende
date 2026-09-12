@@ -10,9 +10,9 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController controller = TextEditingController();
 
-  final List<Map<String, dynamic>> messages = [
-    {'text': 'Olá, preciso de ajuda', 'sender': 'client'},
-    {'text': 'Olá! Como posso ajudar?', 'sender': 'agent'},
+  final List<Map<String, String>> messages = [
+    {'sender': 'client', 'text': 'Olá, preciso de ajuda', 'time': '10:32'},
+    {'sender': 'agent', 'text': 'Olá! Como posso ajudar?', 'time': '10:33'},
   ];
 
   void sendMessage() {
@@ -20,24 +20,12 @@ class _ChatScreenState extends State<ChatScreen> {
 
     setState(() {
       messages.add({
-        'text': controller.text,
         'sender': 'agent',
+        'text': controller.text,
+        'time': 'agora',
       });
       controller.clear();
     });
-  }
-
-  Widget messageBubble(Map<String, dynamic> message) {
-    final bool isAgent = message['sender'] == 'agent';
-
-    return Align(
-      alignment: isAgent ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 6),
-        padding: const EdgeInsets.all(12),
-        child: Text(message['text']),
-      ),
-    );
   }
 
   @override
@@ -51,7 +39,25 @@ class _ChatScreenState extends State<ChatScreen> {
               padding: const EdgeInsets.all(12),
               itemCount: messages.length,
               itemBuilder: (context, index) {
-                return messageBubble(messages[index]);
+                final message = messages[index];
+                final isAgent = message['sender'] == 'agent';
+
+                return Align(
+                  alignment: isAgent
+                      ? Alignment.centerRight
+                      : Alignment.centerLeft,
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(vertical: 5),
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(message['text'] ?? ''),
+                        Text(message['time'] ?? ''),
+                      ],
+                    ),
+                  ),
+                );
               },
             ),
           ),
