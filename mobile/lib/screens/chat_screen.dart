@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/message_bubble.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -40,23 +41,11 @@ class _ChatScreenState extends State<ChatScreen> {
               itemCount: messages.length,
               itemBuilder: (context, index) {
                 final message = messages[index];
-                final isAgent = message['sender'] == 'agent';
 
-                return Align(
-                  alignment: isAgent
-                      ? Alignment.centerRight
-                      : Alignment.centerLeft,
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(vertical: 5),
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(message['text'] ?? ''),
-                        Text(message['time'] ?? ''),
-                      ],
-                    ),
-                  ),
+                return MessageBubble(
+                  text: message['text'] ?? '',
+                  time: message['time'] ?? '',
+                  isAgent: message['sender'] == 'agent',
                 );
               },
             ),
