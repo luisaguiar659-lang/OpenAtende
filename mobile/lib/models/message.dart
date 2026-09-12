@@ -1,11 +1,13 @@
 class Message {
   final String text;
-  final bool isAgent;
-  final DateTime time;
+  final String sender;
+  final String time;
+
+  bool get isAgent => sender == 'agent';
 
   Message({
     required this.text,
-    required this.isAgent,
+    required this.sender,
     required this.time,
   });
 }
