@@ -1,22 +1,28 @@
+import 'package:shared_preferences/shared_preferences.dart';
+
 class StorageService {
-  String? _token;
-  String? _email;
+  static const _tokenKey = 'token';
+  static const _emailKey = 'email';
 
   Future<void> saveSession(String token, String email) async {
-    _token = token;
-    _email = email;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_tokenKey, token);
+    await prefs.setString(_emailKey, email);
   }
 
   Future<String?> getToken() async {
-    return _token;
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_tokenKey);
   }
 
   Future<String?> getEmail() async {
-    return _email;
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_emailKey);
   }
 
   Future<void> clearSession() async {
-    _token = null;
-    _email = null;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_tokenKey);
+    await prefs.remove(_emailKey);
   }
 }
