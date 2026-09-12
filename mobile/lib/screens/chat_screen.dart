@@ -10,26 +10,40 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController controller = TextEditingController();
 
-  final List<String> messages = [
-    'Cliente: Olá, preciso de ajuda',
-    'Atendente: Olá! Como posso ajudar?',
+  final List<Map<String, dynamic>> messages = [
+    {'text': 'Olá, preciso de ajuda', 'sender': 'client'},
+    {'text': 'Olá! Como posso ajudar?', 'sender': 'agent'},
   ];
 
   void sendMessage() {
     if (controller.text.trim().isEmpty) return;
 
     setState(() {
-      messages.add('Atendente: ${controller.text}');
+      messages.add({
+        'text': controller.text,
+        'sender': 'agent',
+      });
       controller.clear();
     });
+  }
+
+  Widget messageBubble(Map<String, dynamic> message) {
+    final bool isAgent = message['sender'] == 'agent';
+
+    return Align(
+      alignment: isAgent ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 6),
+        padding: const EdgeInsets.all(12),
+        child: Text(message['text']),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Atendimento'),
-      ),
+      appBar: AppBar(title: const Text('Atendimento')),
       body: Column(
         children: [
           Expanded(
@@ -37,10 +51,7 @@ class _ChatScreenState extends State<ChatScreen> {
               padding: const EdgeInsets.all(12),
               itemCount: messages.length,
               itemBuilder: (context, index) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  child: Text(messages[index]),
-                );
+                return messageBubble(messages[index]);
               },
             ),
           ),
