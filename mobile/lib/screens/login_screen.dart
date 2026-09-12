@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/storage_service.dart';
+import '../widgets/app_logo.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -34,8 +35,8 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text('OPENATENDE', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 30),
+              const AppLogo(),
+              const SizedBox(height: 40),
               TextField(controller: emailController, decoration: const InputDecoration(labelText: 'Email')),
               TextField(controller: passwordController, obscureText: true, decoration: const InputDecoration(labelText: 'Senha')),
               const SizedBox(height: 20),
