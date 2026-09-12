@@ -19,6 +19,11 @@ jobs:
         with:
           flutter-version: '3.24.0'
 
+      - name: Generate Flutter Android files
+        run: |
+          cd mobile
+          flutter create .
+
       - name: Install dependencies
         run: |
           cd mobile
