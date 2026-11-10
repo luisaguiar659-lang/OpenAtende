@@ -34,6 +34,15 @@ As mensagens devem ser processadas localmente no aparelho. Não enviar conteúdo
 5. Construir a tela de cadastro de regras e respostas (a configuração será feita posteriormente).
 6. Adicionar histórico local, proteção contra duplicidade e controles de execução.
 
-## Estado
+## Estado atual
 
-Planejamento inicial registrado. Ainda não é um APK pronto para instalação.
+Foi criado o esqueleto inicial do projeto Android:
+
+- Configuração Gradle Kotlin DSL e módulo `app`.
+- Tela inicial com status do acesso às notificações e controle liga/desliga.
+- Declaração do `NotificationListenerService`.
+- Verificação do acesso especial às notificações.
+- Modelo e mecanismo inicial de regras com modos `CONTAINS` e `EXACT`; a lista de regras permanece vazia.
+- Tentativa de resposta somente por ação `RemoteInput` disponível na própria notificação do WhatsApp Business.
+
+Ainda não foi gerado nem testado um APK em dispositivo real. A próxima etapa é compilar, corrigir eventuais incompatibilidades e testar a leitura e resposta às notificações em diferentes versões do Android e do WhatsApp Business.
