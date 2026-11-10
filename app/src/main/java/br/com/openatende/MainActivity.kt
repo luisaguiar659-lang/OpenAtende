@@ -1,112 +1,270 @@
 package br.com.openatende
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.Intent
+import android.graphics.Color
+import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.provider.Settings
 import android.view.Gravity
 import android.view.ViewGroup
 import android.widget.Button
+import android.widget.EditText
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
 
 class MainActivity : Activity() {
-    private lateinit var statusText: TextView
-    private lateinit var automationText: TextView
+    private lateinit var content: LinearLayout
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        buildScreen()
+        val scroll = ScrollView(this).apply {
+            setBackgroundColor(Color.rgb(244, 247, 251))
+            isFillViewport = true
+        }
+        content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(28), dp(20), dp(28))
+        }
+        scroll.addView(content)
+        setContentView(scroll)
+        renderDashboard()
     }
 
     override fun onResume() {
         super.onResume()
-        refreshStatus()
+        if (::content.isInitialized) renderDashboard()
     }
 
-    private fun buildScreen() {
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(28, 48, 28, 28)
-            setBackgroundColor(0xFFF5F7FA.toInt())
-        }
-        root.addView(TextView(this).apply {
+    private fun renderDashboard() {
+        content.removeAllViews()
+        val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
+        val access = NotificationAccess.isEnabled(this)
+        val automation = prefs.getBoolean(KEY_ENABLED, false)
+        val rules = ReplyRuleStore.load(this)
+        val sentCount = prefs.getInt(KEY_SENT_COUNT, 0)
+
+        content.addView(TextView(this).apply {
             text = "OpenAtende"
-            textSize = 30f
-            setTextColor(0xFF123B5D.toInt())
-            gravity = Gravity.CENTER
-        }, matchWidth())
-
-        root.addView(TextView(this).apply {
-            text = "Seu atendimento automático começa aqui"
+            textSize = 29f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(Color.rgb(18, 59, 93))
+        })
+        content.addView(TextView(this).apply {
+            text = "Painel de atendimento"
             textSize = 15f
-            gravity = Gravity.CENTER
-            setPadding(0, 8, 0, 32)
-            setTextColor(0xFF526273.toInt())
-        }, matchWidth())
+            setTextColor(Color.rgb(93, 108, 124))
+            setPadding(0, dp(4), 0, dp(20))
+        })
 
-        statusText = TextView(this).apply {
-            textSize = 17f
-            setTextColor(0xFF263746.toInt())
-            setPadding(18, 20, 18, 20)
-            setBackgroundColor(0xFFFFFFFF.toInt())
+        val status = card()
+        status.addView(sectionLabel("STATUS DO APLICATIVO"))
+        status.addView(statusLine("Notificações", if (access) "AUTORIZADO" else "PENDENTE", access))
+        status.addView(statusLine("Automação", if (automation) "ATIVADA" else "DESATIVADA", automation))
+        status.addView(actionButton(if (access) "GERENCIAR PERMISSÃO" else "AUTORIZAR NOTIFICAÇÕES") {
+            startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+        }, fullWidth())
+        content.addView(status, spaced())
+
+        val stats = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        stats.addView(statCard("REGRAS", rules.size.toString(), "respostas cadastradas"),
+            LinearLayout.LayoutParams(0, dp(112), 1f).apply { marginEnd = dp(6) })
+        stats.addView(statCard("RESPOSTAS ENVIADAS", sentCount.toString(), "desde a instalação"),
+            LinearLayout.LayoutParams(0, dp(112), 1f).apply { marginStart = dp(6) })
+        content.addView(stats, spaced())
+
+        val control = card()
+        control.addView(sectionLabel("CONTROLE DA AUTOMAÇÃO"))
+        control.addView(TextView(this).apply {
+            text = if (automation) "O atendimento automático está ligado." else "O atendimento automático está pausado."
+            textSize = 15f
+            setTextColor(Color.rgb(54, 68, 82))
+            setPadding(0, dp(7), 0, dp(12))
+        })
+        control.addView(actionButton(if (automation) "DESATIVAR AUTOMAÇÃO" else "ATIVAR AUTOMAÇÃO") {
+            prefs.edit().putBoolean(KEY_ENABLED, !automation).apply()
+            renderDashboard()
+        }, fullWidth())
+        content.addView(control, spaced())
+
+        val header = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
         }
-        root.addView(statusText, matchWidth())
+        header.addView(TextView(this).apply {
+            text = "Respostas automáticas"
+            textSize = 19f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(Color.rgb(32, 48, 64))
+        }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        header.addView(actionButton("+ ADICIONAR") { showAddRuleDialog() })
+        content.addView(header, spaced())
 
-        root.addView(Button(this).apply {
-            text = "Autorizar acesso às notificações"
-            setOnClickListener {
-                startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
-            }
-        }, matchWidth())
-
-        automationText = TextView(this).apply {
-            textSize = 16f
-            setTextColor(0xFF263746.toInt())
-            setPadding(0, 24, 0, 12)
-        }
-        root.addView(automationText, matchWidth())
-
-        root.addView(Button(this).apply {
-            text = "Ativar / desativar automação"
-            setOnClickListener {
-                val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
-                val enabled = prefs.getBoolean(KEY_ENABLED, false)
-                prefs.edit().putBoolean(KEY_ENABLED, !enabled).apply()
-                refreshStatus()
-            }
-        }, matchWidth())
-
-        root.addView(TextView(this).apply {
-            text = "Os gatilhos e as respostas serão cadastrados em uma próxima etapa.\n\nO envio só será possível quando o WhatsApp Business disponibilizar uma ação de resposta na notificação."
-            textSize = 13f
-            setTextColor(0xFF647383.toInt())
-            setPadding(0, 28, 0, 0)
-        }, matchWidth())
-
-        setContentView(root)
-    }
-
-    private fun refreshStatus() {
-        val accessGranted = NotificationAccess.isEnabled(this)
-        val enabled = getSharedPreferences(PREFS, MODE_PRIVATE)
-            .getBoolean(KEY_ENABLED, false)
-        statusText.text = if (accessGranted) {
-            "Acesso às notificações: AUTORIZADO"
+        if (rules.isEmpty()) {
+            val empty = card()
+            empty.addView(TextView(this).apply {
+                text = "Você ainda não cadastrou respostas.\nAdicione uma palavra ou frase que o OpenAtende deverá identificar e defina a resposta."
+                textSize = 14f
+                setTextColor(Color.rgb(94, 108, 122))
+                setPadding(0, 0, 0, dp(12))
+            })
+            empty.addView(actionButton("CADASTRAR PRIMEIRA RESPOSTA") { showAddRuleDialog() }, fullWidth())
+            content.addView(empty, spaced())
         } else {
-            "Acesso às notificações: NÃO AUTORIZADO"
+            rules.forEachIndexed { index, rule ->
+                val item = card()
+                item.addView(TextView(this).apply {
+                    text = "QUANDO RECEBER: ${rule.trigger}"
+                    textSize = 14f
+                    typeface = Typeface.DEFAULT_BOLD
+                    setTextColor(Color.rgb(25, 61, 88))
+                })
+                item.addView(TextView(this).apply {
+                    text = "RESPONDER: ${rule.response}"
+                    textSize = 14f
+                    setTextColor(Color.rgb(75, 88, 102))
+                    setPadding(0, dp(8), 0, dp(10))
+                })
+                val actions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+                actions.addView(actionButton(if (rule.enabled) "ATIVA" else "PAUSADA") {
+                    ReplyRuleStore.update(this@MainActivity, index, rule.copy(enabled = !rule.enabled))
+                    renderDashboard()
+                }, LinearLayout.LayoutParams(0, dp(46), 1f).apply { marginEnd = dp(6) })
+                actions.addView(actionButton("EXCLUIR") {
+                    AlertDialog.Builder(this@MainActivity)
+                        .setTitle("Excluir resposta?")
+                        .setMessage("A regra para '${rule.trigger}' será removida.")
+                        .setNegativeButton("Cancelar", null)
+                        .setPositiveButton("Excluir") { _, _ ->
+                            ReplyRuleStore.remove(this@MainActivity, index)
+                            renderDashboard()
+                        }.show()
+                }, LinearLayout.LayoutParams(0, dp(46), 1f).apply { marginStart = dp(6) })
+                item.addView(actions)
+                content.addView(item, spaced())
+            }
         }
-        automationText.text = if (enabled) "Automação: ATIVADA" else "Automação: DESATIVADA"
+
+        content.addView(TextView(this).apply {
+            text = "O OpenAtende só responde quando o WhatsApp Business disponibiliza uma ação de resposta na notificação. Mantenha as notificações do WhatsApp Business ativadas."
+            textSize = 12f
+            setTextColor(Color.rgb(112, 124, 137))
+            setPadding(dp(2), dp(12), dp(2), dp(8))
+        })
     }
 
-    private fun matchWidth() = LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT,
-        ViewGroup.LayoutParams.WRAP_CONTENT
-    )
+    private fun showAddRuleDialog() {
+        val form = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(8), dp(20), 0)
+        }
+        val trigger = EditText(this).apply {
+            hint = "Ex.: preço, horário ou endereço"
+            singleLine = true
+        }
+        val response = EditText(this).apply {
+            hint = "Digite a resposta automática"
+            minLines = 3
+            gravity = Gravity.TOP
+        }
+        form.addView(TextView(this).apply { text = "Palavra ou frase para identificar"; textSize = 13f })
+        form.addView(trigger)
+        form.addView(TextView(this).apply {
+            text = "Resposta que será enviada"
+            textSize = 13f
+            setPadding(0, dp(12), 0, 0)
+        })
+        form.addView(response)
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("Nova resposta automática")
+            .setView(form)
+            .setNegativeButton("Cancelar", null)
+            .setPositiveButton("Salvar", null)
+            .create()
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val keyword = trigger.text.toString().trim()
+                val answer = response.text.toString().trim()
+                if (keyword.isBlank()) trigger.error = "Informe uma palavra ou frase"
+                else if (answer.isBlank()) response.error = "Informe a resposta"
+                else {
+                    ReplyRuleStore.add(this, ReplyRule(keyword, answer, MatchMode.CONTAINS))
+                    dialog.dismiss()
+                    renderDashboard()
+                }
+            }
+        }
+        dialog.show()
+    }
+
+    private fun card() = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(dp(16), dp(16), dp(16), dp(16))
+        background = rounded(Color.WHITE, dp(16))
+        elevation = dp(2).toFloat()
+    }
+
+    private fun statCard(title: String, value: String, subtitle: String) = card().apply {
+        addView(sectionLabel(title))
+        addView(TextView(this@MainActivity).apply {
+            text = value
+            textSize = 27f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(Color.rgb(18, 59, 93))
+            setPadding(0, dp(5), 0, 0)
+        })
+        addView(TextView(this@MainActivity).apply {
+            text = subtitle
+            textSize = 11f
+            setTextColor(Color.rgb(105, 119, 132))
+        })
+    }
+
+    private fun statusLine(label: String, value: String, ok: Boolean) = TextView(this).apply {
+        text = "$label     •     $value"
+        textSize = 14f
+        setTextColor(if (ok) Color.rgb(31, 125, 83) else Color.rgb(180, 105, 35))
+        setPadding(0, dp(9), 0, dp(9))
+    }
+
+    private fun sectionLabel(value: String) = TextView(this).apply {
+        text = value
+        textSize = 11f
+        typeface = Typeface.DEFAULT_BOLD
+        setTextColor(Color.rgb(111, 126, 140))
+    }
+
+    private fun actionButton(label: String, action: () -> Unit) = Button(this).apply {
+        text = label
+        textSize = 12f
+        isAllCaps = false
+        setTextColor(Color.WHITE)
+        background = rounded(Color.rgb(24, 75, 111), dp(10))
+        setPadding(dp(8), 0, dp(8), 0)
+        setOnClickListener { action() }
+    }
+
+    private fun rounded(color: Int, radius: Int) = GradientDrawable().apply {
+        setColor(color)
+        cornerRadius = radius.toFloat()
+    }
+
+    private fun fullWidth() = LinearLayout.LayoutParams(
+        ViewGroup.LayoutParams.MATCH_PARENT, dp(48)
+    ).apply { topMargin = dp(10) }
+
+    private fun spaced() = LinearLayout.LayoutParams(
+        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+    ).apply { bottomMargin = dp(14) }
+
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
     companion object {
         const val PREFS = "openatende_settings"
         const val KEY_ENABLED = "automation_enabled"
+        const val KEY_SENT_COUNT = "sent_reply_count"
     }
 }
