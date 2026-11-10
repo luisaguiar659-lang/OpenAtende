@@ -1,5 +1,9 @@
 package br.com.openatende
 
+import android.content.Context
+import org.json.JSONArray
+import org.json.JSONObject
+
 enum class MatchMode { CONTAINS, EXACT }
 
 data class ReplyRule(
@@ -9,14 +13,72 @@ data class ReplyRule(
     val enabled: Boolean = true
 )
 
-object ReplyRuleEngine {
-    // Intencionalmente vazio: as regras serão cadastradas pelo usuário depois.
-    private val rules: List<ReplyRule> = emptyList()
+object ReplyRuleStore {
+    private const val KEY_RULES = "reply_rules"
 
-    fun findResponse(message: String): String? {
+    fun load(context: Context): MutableList<ReplyRule> {
+        val raw = context.getSharedPreferences(MainActivity.PREFS, Context.MODE_PRIVATE)
+            .getString(KEY_RULES, "[]") ?: "[]"
+        val result = mutableListOf<ReplyRule>()
+        return try {
+            val array = JSONArray(raw)
+            for (i in 0 until array.length()) {
+                val item = array.getJSONObject(i)
+                result.add(ReplyRule(
+                    item.optString("trigger"),
+                    item.optString("response"),
+                    runCatching { MatchMode.valueOf(item.optString("mode", "CONTAINS")) }.getOrDefault(MatchMode.CONTAINS),
+                    item.optBoolean("enabled", true)
+                ))
+            }
+            result
+        } catch (_: Exception) {
+            mutableListOf()
+        }
+    }
+
+    fun add(context: Context, rule: ReplyRule) {
+        val rules = load(context)
+        rules.add(rule)
+        save(context, rules)
+    }
+
+    fun update(context: Context, index: Int, rule: ReplyRule) {
+        val rules = load(context)
+        if (index in rules.indices) {
+            rules[index] = rule
+            save(context, rules)
+        }
+    }
+
+    fun remove(context: Context, index: Int) {
+        val rules = load(context)
+        if (index in rules.indices) {
+            rules.removeAt(index)
+            save(context, rules)
+        }
+    }
+
+    private fun save(context: Context, rules: List<ReplyRule>) {
+        val array = JSONArray()
+        rules.forEach { rule ->
+            array.put(JSONObject().apply {
+                put("trigger", rule.trigger)
+                put("response", rule.response)
+                put("mode", rule.mode.name)
+                put("enabled", rule.enabled)
+            })
+        }
+        context.getSharedPreferences(MainActivity.PREFS, Context.MODE_PRIVATE)
+            .edit().putString(KEY_RULES, array.toString()).apply()
+    }
+}
+
+object ReplyRuleEngine {
+    fun findResponse(context: Context, message: String): String? {
         val normalizedMessage = normalize(message)
         if (normalizedMessage.isBlank()) return null
-        return rules.firstOrNull { rule ->
+        return ReplyRuleStore.load(context).firstOrNull { rule ->
             if (!rule.enabled || rule.trigger.isBlank() || rule.response.isBlank()) false
             else {
                 val trigger = normalize(rule.trigger)
