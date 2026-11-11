@@ -79,33 +79,9 @@ class TestCenterActivity : Activity() {
         })
         root.addView(providerCard, panelParams())
 
-        sectionTitle(root, "1. SERVIDOR")
         lateinit var modeGroup: RadioGroup
-        val providers = RadioGroup(this).apply { orientation = RadioGroup.VERTICAL }
-        val master = RadioButton(this).apply {
-            id = android.view.View.generateViewId()
-            text = "MasterFlix"
-            textSize = 16f
-            setTextColor(Color.rgb(35, 55, 75))
-            isChecked = selectedProvider == PROVIDER_MASTERFLIX
-        }
-        val stv = RadioButton(this).apply {
-            id = android.view.View.generateViewId()
-            text = "STV+"
-            textSize = 16f
-            setTextColor(Color.rgb(35, 55, 75))
-            isChecked = selectedProvider == PROVIDER_STV
-        }
-        providers.addView(master)
-        providers.addView(stv)
-        providers.setOnCheckedChangeListener { _, checkedId ->
-            selectedProvider = if (checkedId == stv.id) PROVIDER_STV else PROVIDER_MASTERFLIX
-            prefs.edit().putString(KEY_PROVIDER, selectedProvider).apply()
-            modeGroup.visibility = if (selectedProvider == PROVIDER_STV) android.view.View.VISIBLE else android.view.View.GONE
-        }
-        root.addView(providers, panelParams())
-
-        sectionTitle(root, "2. CONFIGURAÇÃO DO TESTE")
+        if (selectedProvider == PROVIDER_STV) {
+            sectionTitle(root, "1. CONFIGURAÇÃO DO TESTE")
         root.addView(bodyText("Validade definida automaticamente: 1 hora. Não é necessário escolher a duração."))
 
         modeGroup = RadioGroup(this).apply { orientation = RadioGroup.VERTICAL }
@@ -123,14 +99,17 @@ class TestCenterActivity : Activity() {
         }
         modeGroup.addView(withAdults)
         modeGroup.addView(withoutAdults)
-        modeGroup.visibility = if (selectedProvider == PROVIDER_STV) android.view.View.VISIBLE else android.view.View.GONE
         modeGroup.setOnCheckedChangeListener { _, checkedId ->
             selectedMode = if (checkedId == withAdults.id) MODE_ADULT else MODE_STANDARD
             prefs.edit().putString(KEY_MODE, selectedMode).apply()
         }
         root.addView(modeGroup, panelParams())
+        } else {
+            sectionTitle(root, "1. CONFIGURAÇÃO DO TESTE")
+            root.addView(bodyText("MasterFlix: teste completo com validade automática de 1 hora."))
+        }
 
-        sectionTitle(root, "3. ACESSO AO PAINEL")
+        sectionTitle(root, "2. ACESSO AO PAINEL")
         root.addView(bodyText("Abra o painel dentro do próprio OpenAtende para entrar na sua conta. Se houver CAPTCHA ou verificação de segurança, conclua manualmente na tela interna."))
         val savedCredentials = PanelCredentialStore.load(this, selectedProvider)
         val usernameField = EditText(this).apply {
