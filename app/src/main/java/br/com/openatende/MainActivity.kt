@@ -17,9 +17,14 @@ import android.widget.RadioButton
 import android.widget.RadioGroup
 import android.widget.ScrollView
 import android.widget.TextView
+import android.text.Editable
+import android.text.TextWatcher
 
 class MainActivity : Activity() {
     private lateinit var content: LinearLayout
+    private lateinit var ruleListContainer: LinearLayout
+    private var ruleSearchQuery = ""
+    private var ruleFilter = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -105,60 +110,48 @@ class MainActivity : Activity() {
         header.addView(actionButton("+ ADICIONAR") { showAddRuleDialog() })
         content.addView(header, spaced())
 
-        if (rules.isEmpty()) {
-            val empty = card()
-            empty.addView(TextView(this).apply {
-                text = "Você ainda não cadastrou respostas.\nAdicione uma palavra ou frase que o OpenAtende deverá identificar e defina a resposta."
-                textSize = 14f
-                setTextColor(Color.rgb(94, 108, 122))
-                setPadding(0, 0, 0, dp(12))
+        val search = EditText(this).apply {
+            hint = "Pesquisar por gatilho ou resposta..."
+            isSingleLine = true
+            setText(ruleSearchQuery)
+            textSize = 14f
+            setPadding(dp(14), dp(4), dp(14), dp(4))
+            background = rounded(Color.WHITE, dp(10))
+            addTextChangedListener(object : TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                    ruleSearchQuery = s?.toString().orEmpty()
+                    renderRuleCards(rules)
+                }
+                override fun afterTextChanged(s: Editable?) {}
             })
-            empty.addView(actionButton("CADASTRAR PRIMEIRA RESPOSTA") { showAddRuleDialog() }, fullWidth())
-            content.addView(empty, spaced())
-        } else {
-            rules.forEachIndexed { index, rule ->
-                val item = card()
-                item.addView(TextView(this).apply {
-                    text = "QUANDO RECEBER: ${rule.trigger}"
-                    textSize = 14f
-                    typeface = Typeface.DEFAULT_BOLD
-                    setTextColor(Color.rgb(25, 61, 88))
-                })
-                item.addView(TextView(this).apply {
-                    text = "MODO: " + if (rule.mode == MatchMode.CONTAINS) "CONTÉM A PALAVRA/ FRASE" else "MENSAGEM EXATA"
-                    textSize = 12f
-                    typeface = Typeface.DEFAULT_BOLD
-                    setTextColor(Color.rgb(31, 125, 83))
-                    setPadding(0, dp(6), 0, 0)
-                })
-                item.addView(TextView(this).apply {
-                    text = "RESPONDER: ${rule.response}"
-                    textSize = 14f
-                    setTextColor(Color.rgb(75, 88, 102))
-                    setPadding(0, dp(8), 0, dp(10))
-                })
-                item.addView(actionButton("EDITAR RESPOSTA") {
-                    showRuleDialog(index)
-                }, fullWidth())
-                val actions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-                actions.addView(actionButton(if (rule.enabled) "ATIVA" else "PAUSADA") {
-                    ReplyRuleStore.update(this@MainActivity, index, rule.copy(enabled = !rule.enabled))
-                    renderDashboard()
-                }, LinearLayout.LayoutParams(0, dp(46), 1f).apply { marginEnd = dp(6) })
-                actions.addView(actionButton("EXCLUIR") {
-                    AlertDialog.Builder(this@MainActivity)
-                        .setTitle("Excluir resposta?")
-                        .setMessage("A regra para '${rule.trigger}' será removida.")
-                        .setNegativeButton("Cancelar", null)
-                        .setPositiveButton("Excluir") { _, _ ->
-                            ReplyRuleStore.remove(this@MainActivity, index)
-                            renderDashboard()
-                        }.show()
-                }, LinearLayout.LayoutParams(0, dp(46), 1f).apply { marginStart = dp(6) })
-                item.addView(actions)
-                content.addView(item, spaced())
-            }
         }
+        content.addView(search, spaced())
+
+        val filters = RadioGroup(this).apply {
+            orientation = RadioGroup.HORIZONTAL
+            setPadding(0, 0, 0, dp(8))
+        }
+        listOf("Todas", "Ativas", "Pausadas").forEachIndexed { index, label ->
+            filters.addView(RadioButton(this).apply {
+                id = index + 1
+                text = label
+                textSize = 12f
+                setPadding(dp(4), 0, dp(4), 0)
+            }, RadioGroup.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        }
+        filters.check(ruleFilter + 1)
+        filters.setOnCheckedChangeListener { _, checkedId ->
+            ruleFilter = (checkedId - 1).coerceIn(0, 2)
+            renderRuleCards(rules)
+        }
+        content.addView(filters, spaced())
+
+        ruleListContainer = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+        }
+        content.addView(ruleListContainer, spaced())
+        renderRuleCards(rules)
 
         content.addView(TextView(this).apply {
             text = "O OpenAtende só responde quando o WhatsApp Business disponibiliza uma ação de resposta na notificação. Mantenha as notificações do WhatsApp Business ativadas."
@@ -166,6 +159,91 @@ class MainActivity : Activity() {
             setTextColor(Color.rgb(112, 124, 137))
             setPadding(dp(2), dp(12), dp(2), dp(8))
         })
+    }
+
+    private fun renderRuleCards(rules: List<ReplyRule>) {
+        if (!::ruleListContainer.isInitialized) return
+        ruleListContainer.removeAllViews()
+        val query = ruleSearchQuery.trim()
+        val filtered = rules.withIndex().filter { (_, rule) ->
+            val matchesQuery = query.isBlank() ||
+                rule.trigger.contains(query, ignoreCase = true) ||
+                rule.response.contains(query, ignoreCase = true)
+            val matchesStatus = when (ruleFilter) {
+                1 -> rule.enabled
+                2 -> !rule.enabled
+                else -> true
+            }
+            matchesQuery && matchesStatus
+        }
+        if (rules.isEmpty()) {
+            val empty = card()
+            empty.addView(TextView(this).apply {
+                text = "Você ainda não cadastrou respostas. Toque em + ADICIONAR para criar a primeira regra."
+                textSize = 14f
+                setTextColor(Color.rgb(94, 108, 122))
+            })
+            empty.addView(actionButton("CADASTRAR PRIMEIRA RESPOSTA") { showAddRuleDialog() }, fullWidth())
+            ruleListContainer.addView(empty, spaced())
+            return
+        }
+        if (filtered.isEmpty()) {
+            ruleListContainer.addView(TextView(this).apply {
+                text = "Nenhuma resposta encontrada com essa pesquisa ou filtro."
+                textSize = 14f
+                setTextColor(Color.rgb(94, 108, 122))
+                setPadding(dp(8), dp(14), dp(8), dp(14))
+            })
+            return
+        }
+        ruleListContainer.addView(TextView(this).apply {
+            text = "${filtered.size} de ${rules.size} respostas"
+            textSize = 12f
+            setTextColor(Color.rgb(112, 124, 137))
+            setPadding(dp(2), 0, 0, dp(8))
+        })
+        filtered.forEach { entry ->
+            val index = entry.index
+            val rule = entry.value
+            val item = card()
+            item.addView(TextView(this).apply {
+                text = "QUANDO RECEBER: ${rule.trigger}"
+                textSize = 14f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(Color.rgb(25, 61, 88))
+            })
+            item.addView(TextView(this).apply {
+                text = "MODO: " + if (rule.mode == MatchMode.CONTAINS) "CONTÉM A PALAVRA/ FRASE" else "MENSAGEM EXATA"
+                textSize = 12f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(Color.rgb(31, 125, 83))
+                setPadding(0, dp(6), 0, 0)
+            })
+            item.addView(TextView(this).apply {
+                text = "RESPONDER: ${rule.response}"
+                textSize = 14f
+                setTextColor(Color.rgb(75, 88, 102))
+                setPadding(0, dp(8), 0, dp(10))
+            })
+            item.addView(actionButton("EDITAR RESPOSTA") { showRuleDialog(index) }, fullWidth())
+            val actions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            actions.addView(actionButton(if (rule.enabled) "ATIVA" else "PAUSADA") {
+                ReplyRuleStore.update(this@MainActivity, index, rule.copy(enabled = !rule.enabled))
+                renderDashboard()
+            }, LinearLayout.LayoutParams(0, dp(46), 1f).apply { marginEnd = dp(6) })
+            actions.addView(actionButton("EXCLUIR") {
+                AlertDialog.Builder(this@MainActivity)
+                    .setTitle("Excluir resposta?")
+                    .setMessage("A regra para '${rule.trigger}' será removida.")
+                    .setNegativeButton("Cancelar", null)
+                    .setPositiveButton("Excluir") { _, _ ->
+                        ReplyRuleStore.remove(this@MainActivity, index)
+                        renderDashboard()
+                    }.show()
+            }, LinearLayout.LayoutParams(0, dp(46), 1f).apply { marginStart = dp(6) })
+            item.addView(actions)
+            ruleListContainer.addView(item, spaced())
+        }
     }
 
     private fun showAddRuleDialog() = showRuleDialog(null)
