@@ -169,10 +169,11 @@ class PanelWebViewActivity : Activity() {
         """.trimIndent()
         view.evaluateJavascript(script) { result ->
             when (result) {
-                "\"continue-clicked\"" ->
+                "\"continue-clicked\"" -> {
                     loginSubmitted = true
                     Toast.makeText(this, "Login enviado. Aguardando 3,5 segundos.", Toast.LENGTH_LONG).show()
                     scheduleTestGeneration(view, provider)
+                }
                 "\"security-check-required\"" ->
                     Toast.makeText(this, "Credenciais preenchidas. O painel solicitou verificação de segurança; conclua manualmente.", Toast.LENGTH_LONG).show()
                 "\"credentials-filled\"" ->
