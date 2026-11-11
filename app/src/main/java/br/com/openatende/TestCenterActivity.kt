@@ -13,6 +13,8 @@ import android.widget.RadioGroup
 import android.widget.TextView
 
 class TestCenterActivity : Activity() {
+    private var embeddedPanel: android.webkit.WebView? = null
+
 
     private val prefs by lazy { getSharedPreferences("test_automation", MODE_PRIVATE) }
     private var selectedProvider = PROVIDER_MASTERFLIX
@@ -191,16 +193,54 @@ class TestCenterActivity : Activity() {
 
         root.addView(bodyText("A senha é criptografada com uma chave mantida pelo Android Keystore e separada por painel. Ela não é enviada ao OpenAtende nem compartilhada entre MasterFlix e STV+."))
 
+        val embeddedPanelBox = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(6), dp(6), dp(6), dp(6))
+            background = panelBackground()
+            visibility = android.view.View.GONE
+        }
+        val embeddedProgress = android.widget.ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply { max = 100 }
+        embeddedPanelBox.addView(embeddedProgress, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(3)))
+        val embeddedWebView = android.webkit.WebView(this).apply {
+            settings.javaScriptEnabled = true
+            settings.domStorageEnabled = true
+            settings.loadsImagesAutomatically = true
+            settings.allowFileAccess = false
+            settings.allowContentAccess = false
+            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(330))
+            webChromeClient = object : android.webkit.WebChromeClient() {
+                override fun onProgressChanged(view: android.webkit.WebView, newProgress: Int) {
+                    embeddedProgress.progress = newProgress
+                    embeddedProgress.visibility = if (newProgress >= 100) android.view.View.GONE else android.view.View.VISIBLE
+                }
+            }
+            webViewClient = object : android.webkit.WebViewClient() {
+                override fun onPageFinished(view: android.webkit.WebView, url: String) {
+                    val expectedHost = if (selectedProvider == PROVIDER_STV) "stvmais.sigma.vin" else "masterflix.sigmab.pro"
+                    if (android.net.Uri.parse(url).host != expectedHost) return
+                    val credentials = runCatching { PanelCredentialStore.load(this@TestCenterActivity, selectedProvider) }.getOrNull() ?: return
+                    val user = org.json.JSONObject.quote(credentials.username)
+                    val pass = org.json.JSONObject.quote(credentials.password)
+                    val js = "(function(){const p=document.querySelector('input[type=password]');const u=document.querySelector('input[type=email],input[autocomplete=username],input[type=text]');if(!p)return;const s=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;if(u&&!u.value){s.call(u,$user);u.dispatchEvent(new Event('input',{bubbles:true}));}if(!p.value){s.call(p,$pass);p.dispatchEvent(new Event('input',{bubbles:true}));}const b=Array.from(document.querySelectorAll('button,[role=button],input[type=submit]')).find(e=>/^(continuar|continue|entrar|login)$/i.test((e.innerText||e.value||'').trim()));if(b&&!b.dataset.oaClick){b.dataset.oaClick='1';b.click();}})();"
+                    view.evaluateJavascript(js, null)
+                }
+            }
+        }
+        embeddedPanel = embeddedWebView
+        embeddedPanelBox.addView(embeddedWebView)
         root.addView(Button(this).apply {
-            text = "ABRIR $providerName E FAZER LOGIN"
+            text = "ABRIR $providerName NESTA TELA"
             isAllCaps = false
             setTextColor(Color.WHITE)
             background = panelButton()
             setOnClickListener {
-                startActivity(android.content.Intent(this@TestCenterActivity, PanelWebViewActivity::class.java)
-                    .putExtra(PanelWebViewActivity.EXTRA_PROVIDER, selectedProvider))
+                embeddedPanelBox.visibility = if (embeddedPanelBox.visibility == android.view.View.VISIBLE) android.view.View.GONE else android.view.View.VISIBLE
+                if (embeddedWebView.url == null) {
+                    embeddedWebView.loadUrl(if (selectedProvider == PROVIDER_STV) "https://stvmais.sigma.vin/#/sign-in?redirect=/dashboard" else "https://masterflix.sigmab.pro/#/sign-in?redirect=/dashboard")
+                }
             }
         }, buttonParams())
+        root.addView(embeddedPanelBox, panelParams())
 
         val status = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -228,6 +268,12 @@ class TestCenterActivity : Activity() {
             background = panelButton()
             setOnClickListener { finish() }
         }, buttonParams())
+    }
+
+    override fun onDestroy() {
+        embeddedPanel?.apply { stopLoading(); destroy() }
+        embeddedPanel = null
+        super.onDestroy()
     }
 
     private fun sectionTitle(root: LinearLayout, value: String) {
