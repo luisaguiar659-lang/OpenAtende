@@ -109,7 +109,7 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER_VERTICAL
         }
         header.addView(TextView(this).apply {
-            text = "Respostas automáticas"
+            text = "Gatilhos e comandos de teste"
             textSize = 19f
             typeface = Typeface.DEFAULT_BOLD
             setTextColor(Color.rgb(32, 48, 64))
@@ -343,7 +343,7 @@ class MainActivity : Activity() {
             setPadding(dp(20), dp(8), dp(20), 0)
         }
         val trigger = EditText(this).apply {
-            hint = "Ex.: preço, horário ou endereço"
+            hint = "Ex.: teste masterflix ou teste stv+"
             isSingleLine = true
             setText(existing?.trigger.orEmpty())
         }
@@ -383,23 +383,48 @@ class MainActivity : Activity() {
             gravity = Gravity.TOP
             setText(existing?.response.orEmpty())
         }
-        form.addView(TextView(this).apply { text = "Palavra ou frase para identificar"; textSize = 13f })
+        form.addView(TextView(this).apply {
+            text = "COMANDO QUE O CLIENTE VAI ENVIAR"
+            textSize = 12f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(Color.rgb(75, 96, 115))
+        })
         form.addView(trigger)
         form.addView(TextView(this).apply {
-            text = "Como identificar a mensagem?"
-            textSize = 13f
-            setPadding(0, dp(12), 0, 0)
+            text = "O QUE O OPENATENDE DEVE FAZER?"
+            textSize = 12f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(Color.rgb(75, 96, 115))
+            setPadding(0, dp(14), 0, dp(4))
+        })
+        form.addView(actionGroup)
+        form.addView(TextView(this).apply {
+            text = "COMO IDENTIFICAR O COMANDO?"
+            textSize = 12f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(Color.rgb(75, 96, 115))
+            setPadding(0, dp(10), 0, 0)
         })
         form.addView(modeGroup)
-        form.addView(TextView(this).apply {
-            text = "Resposta que será enviada"
-            textSize = 13f
-            setPadding(0, dp(12), 0, 0)
-        })
+        val responseLabel = TextView(this).apply {
+            text = "RESPOSTA AUTOMÁTICA"
+            textSize = 12f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(Color.rgb(75, 96, 115))
+            setPadding(0, dp(12), 0, dp(4))
+        }
+        form.addView(responseLabel)
         form.addView(response)
+        fun updateResponseVisibility() {
+            val isReply = actionGroup.checkedRadioButtonId == replyAction.id
+            responseLabel.visibility = if (isReply) android.view.View.VISIBLE else android.view.View.GONE
+            response.visibility = if (isReply) android.view.View.VISIBLE else android.view.View.GONE
+        }
+        actionGroup.setOnCheckedChangeListener { _, _ -> updateResponseVisibility() }
+        updateResponseVisibility()
 
         val dialog = AlertDialog.Builder(this)
-            .setTitle(if (existing == null) "Nova resposta automática" else "Editar resposta automática")
+            .setTitle(if (existing == null) "Novo gatilho ou comando" else "Editar gatilho ou comando")
             .setView(form)
             .setNegativeButton("Cancelar", null)
             .setPositiveButton(if (existing == null) "Salvar" else "Atualizar", null)
