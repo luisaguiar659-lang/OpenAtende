@@ -185,6 +185,7 @@ class TestCenterActivity : Activity() {
         }
         val embeddedProgress = android.widget.ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply { max = 100 }
         embeddedPanelBox.addView(embeddedProgress, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(3)))
+        var panelLastTouchY = 0f
         val embeddedWebView = android.webkit.WebView(this).apply {
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
@@ -197,9 +198,13 @@ class TestCenterActivity : Activity() {
             setOnTouchListener { view, event ->
                 val parent = view.parent
                 when (event.actionMasked) {
-                    android.view.MotionEvent.ACTION_DOWN -> parent?.requestDisallowInterceptTouchEvent(true)
+                    android.view.MotionEvent.ACTION_DOWN -> {
+                        panelLastTouchY = event.y
+                        parent?.requestDisallowInterceptTouchEvent(true)
+                    }
                     android.view.MotionEvent.ACTION_MOVE -> {
-                        val deltaY = event.y - event.getHistoricalY(0)
+                        val deltaY = event.y - panelLastTouchY
+                        panelLastTouchY = event.y
                         val canWebScroll = if (deltaY > 0) view.canScrollVertically(-1) else view.canScrollVertically(1)
                         parent?.requestDisallowInterceptTouchEvent(canWebScroll)
                     }
