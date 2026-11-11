@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.view.ViewGroup
 import android.widget.Button
+import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.RadioButton
 import android.widget.RadioGroup
@@ -131,6 +132,67 @@ class TestCenterActivity : Activity() {
 
         sectionTitle(root, "3. ACESSO AO PAINEL")
         root.addView(bodyText("Conecte sua conta administrativa para preparar este módulo. O login será feito no navegador; o OpenAtende não coleta nem armazena sua senha nesta etapa. Se houver CAPTCHA ou verificação de segurança, conclua manualmente."))
+        val savedCredentials = PanelCredentialStore.load(this, selectedProvider)
+        val usernameField = EditText(this).apply {
+            hint = "Usuário do painel"
+            isSingleLine = true
+            setText(savedCredentials?.username.orEmpty())
+            textSize = 14f
+        }
+        val passwordField = EditText(this).apply {
+            hint = "Senha do painel"
+            isSingleLine = true
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+            setText(savedCredentials?.password.orEmpty())
+            textSize = 14f
+        }
+        root.addView(TextView(this).apply {
+            text = "Credenciais deste painel"
+            textSize = 14f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(Color.rgb(35, 55, 75))
+            setPadding(0, dp(8), 0, dp(4))
+        })
+        root.addView(usernameField, panelParams())
+        root.addView(passwordField, panelParams())
+        root.addView(Button(this).apply {
+            text = "SALVAR ACESSO COM CRIPTOGRAFIA"
+            isAllCaps = false
+            setTextColor(Color.WHITE)
+            background = panelButton()
+            setOnClickListener {
+                val username = usernameField.text.toString().trim()
+                val password = passwordField.text.toString()
+                if (username.isBlank()) {
+                    usernameField.error = "Informe o usuário"
+                } else if (password.isBlank()) {
+                    passwordField.error = "Informe a senha"
+                } else {
+                    try {
+                        PanelCredentialStore.save(this@TestCenterActivity, selectedProvider, username, password)
+                        android.widget.Toast.makeText(this@TestCenterActivity, "Acesso salvo com proteção do Android.", android.widget.Toast.LENGTH_LONG).show()
+                    } catch (_: Exception) {
+                        android.widget.Toast.makeText(this@TestCenterActivity, "Não foi possível proteger e salvar o acesso neste aparelho.", android.widget.Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+        }, buttonParams())
+
+        root.addView(Button(this).apply {
+            text = "APAGAR ACESSO SALVO"
+            isAllCaps = false
+            setTextColor(Color.rgb(150, 55, 55))
+            background = panelBackground()
+            setOnClickListener {
+                PanelCredentialStore.clear(this@TestCenterActivity, selectedProvider)
+                usernameField.setText("")
+                passwordField.setText("")
+                android.widget.Toast.makeText(this@TestCenterActivity, "Acesso removido deste aparelho.", android.widget.Toast.LENGTH_SHORT).show()
+            }
+        }, buttonParams())
+
+        root.addView(bodyText("A senha é criptografada com uma chave mantida pelo Android Keystore e separada por painel. Ela não é enviada ao OpenAtende nem compartilhada entre MasterFlix e STV+."))
+
         root.addView(Button(this).apply {
             text = "ABRIR $providerName E FAZER LOGIN"
             isAllCaps = false
