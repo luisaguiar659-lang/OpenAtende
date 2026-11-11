@@ -14,6 +14,11 @@ import android.widget.TextView
 
 class TestCenterActivity : Activity() {
     private var embeddedPanel: android.webkit.WebView? = null
+    private val panelHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var embeddedLoginSubmitted = false
+    private var embeddedTestStarted = false
+    private var embeddedCopyStarted = false
+    private var embeddedClipboardListener: android.content.ClipboardManager.OnPrimaryClipChangedListener? = null
 
 
     private val prefs by lazy { getSharedPreferences("test_automation", MODE_PRIVATE) }
@@ -200,13 +205,21 @@ class TestCenterActivity : Activity() {
                     val credentials = runCatching { PanelCredentialStore.load(this@TestCenterActivity, selectedProvider) }.getOrNull() ?: return
                     val user = org.json.JSONObject.quote(credentials.username)
                     val pass = org.json.JSONObject.quote(credentials.password)
-                    val js = "(function(){const p=document.querySelector('input[type=password]');const u=document.querySelector('input[type=email],input[autocomplete=username],input[type=text]');if(!p)return;const s=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;if(u&&!u.value){s.call(u,$user);u.dispatchEvent(new Event('input',{bubbles:true}));}if(!p.value){s.call(p,$pass);p.dispatchEvent(new Event('input',{bubbles:true}));}const b=Array.from(document.querySelectorAll('button,[role=button],input[type=submit]')).find(e=>/^(continuar|continue|entrar|login)$/i.test((e.innerText||e.value||'').trim()));if(b&&!b.dataset.oaClick){b.dataset.oaClick='1';b.click();}})();"
-                    view.evaluateJavascript(js, null)
+                    val js = "(function(){const visible=e=>!!(e.offsetWidth||e.offsetHeight||e.getClientRects().length);const p=Array.from(document.querySelectorAll('input[type=password]')).find(visible);const u=Array.from(document.querySelectorAll('input[type=email],input[autocomplete=username],input[type=text]')).find(visible);if(!p)return 'no-form';const s=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;if(u&&!u.value){s.call(u,$user);u.dispatchEvent(new Event('input',{bubbles:true}));u.dispatchEvent(new Event('change',{bubbles:true}));}if(!p.value){s.call(p,$pass);p.dispatchEvent(new Event('input',{bubbles:true}));p.dispatchEvent(new Event('change',{bubbles:true}));}const b=Array.from(document.querySelectorAll('button,[role=button],input[type=submit]')).find(e=>visible(e)&&!e.disabled&&/^(continuar|continue|entrar|login)$/i.test((e.innerText||e.value||'').trim()));if(b&&!b.dataset.oaClick){b.dataset.oaClick='1';b.click();return 'submitted';}return 'filled';})();"
+                    view.evaluateJavascript(js) { result ->
+                        if (result == "\"submitted\"") {
+                            embeddedLoginSubmitted = true
+                            panelHandler.postDelayed({ runEmbeddedTestGeneration(view) }, 3500L)
+                        } else if (embeddedLoginSubmitted) {
+                            panelHandler.postDelayed({ runEmbeddedTestGeneration(view) }, 3500L)
+                        }
+                    }
                 }
             }
         }
         embeddedPanel = embeddedWebView
         embeddedPanelBox.addView(embeddedWebView)
+        registerEmbeddedClipboardCapture()
         root.addView(Button(this).apply {
             text = "ABRIR $providerName NESTA TELA"
             isAllCaps = false
@@ -249,7 +262,79 @@ class TestCenterActivity : Activity() {
         }, buttonParams())
     }
 
+    private fun runEmbeddedTestGeneration(view: android.webkit.WebView) {
+        if (embeddedTestStarted || isFinishing || isDestroyed) return
+        val provider = selectedProvider
+        val mode = prefs.getString(KEY_MODE, MODE_STANDARD) ?: MODE_STANDARD
+        val label = when {
+            provider == PROVIDER_MASTERFLIX -> "MASTERFLIX TESTE COMPLETO 1H"
+            mode == MODE_ADULT -> "TESTE + ADULTO"
+            else -> "TESTE SEM ADULTO"
+        }
+        val quoted = org.json.JSONObject.quote(label)
+        val script = """
+            (function() {
+              const norm=s=>(s||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9]+/g,'');
+              const visible=e=>!!(e.offsetWidth||e.offsetHeight||e.getClientRects().length);
+              const target=norm($quoted);
+              const aliases=target==='TESTEADULTO'?['TESTEADULTO','TESTEADULTOS']:target==='TESTESEMADULTO'?['TESTESEMADULTO','TESTESEMADULTOS']:[target];
+              const found=Array.from(document.querySelectorAll('body *')).filter(visible).map(e=>({e,t:norm(e.innerText||e.textContent||e.value||e.getAttribute('aria-label'))})).filter(x=>x.t&&aliases.some(a=>x.t===a||x.t.startsWith(a))).sort((a,b)=>a.t.length-b.t.length)[0];
+              if(!found)return 'not-found';
+              found.e.scrollIntoView({block:'center'});
+              found.e.click();
+              return 'clicked';
+            })();
+        """.trimIndent()
+        view.evaluateJavascript(script) { result ->
+            if (result == "\"clicked\"") {
+                embeddedTestStarted = true
+                panelHandler.postDelayed({ copyEmbeddedTestResult(view) }, 3500L)
+                android.widget.Toast.makeText(this, "Geração do teste acionada. Aguardando resultado.", android.widget.Toast.LENGTH_LONG).show()
+            } else {
+                android.widget.Toast.makeText(this, "Opção '$label' não encontrada no painel.", android.widget.Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    private fun copyEmbeddedTestResult(view: android.webkit.WebView) {
+        if (embeddedCopyStarted || isFinishing || isDestroyed) return
+        val script = """
+            (function(){
+              window.scrollTo(0,document.documentElement.scrollHeight);
+              const visible=e=>!!(e.offsetWidth||e.offsetHeight||e.getClientRects().length);
+              const norm=s=>(s||'').replace(/\\s+/g,' ').trim().toUpperCase();
+              const b=Array.from(document.querySelectorAll('button,a,[role=button]')).find(e=>visible(e)&&!e.disabled&&norm(e.innerText||e.getAttribute('aria-label'))==='COPIAR');
+              if(!b)return 'not-found';b.click();return 'clicked';
+            })();
+        """.trimIndent()
+        view.evaluateJavascript(script) { result ->
+            if (result == "\"clicked\"") embeddedCopyStarted = true
+            else android.widget.Toast.makeText(this, "Botão COPIAR não encontrado.", android.widget.Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun registerEmbeddedClipboardCapture() {
+        val clipboard = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+        val listener = android.content.ClipboardManager.OnPrimaryClipChangedListener {
+            val clip = clipboard.primaryClip ?: return@OnPrimaryClipChangedListener
+            val copied = (0 until clip.itemCount).joinToString("\\n") { i -> clip.getItemAt(i).coerceToText(this).toString() }.trim()
+            if (copied.isNotBlank() && embeddedCopyStarted) {
+                prefs.edit().putString("last_copied_test", copied).putString("last_copied_provider", selectedProvider).putLong("last_copied_at", System.currentTimeMillis()).apply()
+                val sent = TestAutomationRouter.complete(this, copied)
+                runOnUiThread { android.widget.Toast.makeText(this, if (sent) "Teste enviado ao WhatsApp." else "Teste copiado. Não havia resposta automática disponível nesta notificação.", android.widget.Toast.LENGTH_LONG).show() }
+                embeddedCopyStarted = false
+            }
+        }
+        embeddedClipboardListener = listener
+        clipboard.addPrimaryClipChangedListener(listener)
+    }
+
     override fun onDestroy() {
+        panelHandler.removeCallbacksAndMessages(null)
+        embeddedClipboardListener?.let { listener ->
+            val clipboard = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+            clipboard.removePrimaryClipChangedListener(listener)
+        }
         embeddedPanel?.apply { stopLoading(); destroy() }
         embeddedPanel = null
         super.onDestroy()
