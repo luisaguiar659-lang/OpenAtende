@@ -51,6 +51,7 @@ class TestCenterActivity : Activity() {
         })
 
         sectionTitle(root, "1. ESCOLHA O SERVIDOR")
+        lateinit var modeGroup: RadioGroup
         val providers = RadioGroup(this).apply { orientation = RadioGroup.VERTICAL }
         val master = RadioButton(this).apply {
             id = android.view.View.generateViewId()
@@ -92,7 +93,7 @@ class TestCenterActivity : Activity() {
         }
         root.addView(durations, panelParams())
 
-        val modeGroup = RadioGroup(this).apply { orientation = RadioGroup.VERTICAL }
+        modeGroup = RadioGroup(this).apply { orientation = RadioGroup.VERTICAL }
         val withAdults = RadioButton(this).apply {
             id = android.view.View.generateViewId()
             text = "Com conteúdo adulto"
