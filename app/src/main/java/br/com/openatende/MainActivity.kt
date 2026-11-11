@@ -2,6 +2,7 @@ package br.com.openatende
 
 import android.app.Activity
 import android.app.AlertDialog
+import android.app.Dialog
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
@@ -9,6 +10,7 @@ import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.provider.Settings
 import android.view.Gravity
+import android.view.WindowManager
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
@@ -54,12 +56,16 @@ class MainActivity : Activity() {
         val rules = ReplyRuleStore.load(this)
         val sentCount = prefs.getInt(KEY_SENT_COUNT, 0)
 
-        content.addView(TextView(this).apply {
+        val topBar = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        topBar.addView(actionButton("☰") { showSideMenu() }, LinearLayout.LayoutParams(dp(48), dp(44)))
+        topBar.addView(TextView(this).apply {
             text = "OpenAtende"
             textSize = 29f
             typeface = Typeface.DEFAULT_BOLD
             setTextColor(Color.rgb(18, 59, 93))
-        })
+            setPadding(dp(12), 0, 0, 0)
+        }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        content.addView(topBar, spaced())
         content.addView(TextView(this).apply {
             text = "Painel de atendimento"
             textSize = 15f
@@ -96,25 +102,6 @@ class MainActivity : Activity() {
             renderDashboard()
         }, fullWidth())
         content.addView(control, spaced())
-
-        val testCenter = card()
-        testCenter.addView(sectionLabel("AUTOMAÇÃO COMERCIAL"))
-        testCenter.addView(TextView(this).apply {
-            text = "Central de Testes"
-            textSize = 18f
-            typeface = Typeface.DEFAULT_BOLD
-            setTextColor(Color.rgb(25, 61, 88))
-            setPadding(0, dp(6), 0, dp(4))
-        })
-        testCenter.addView(TextView(this).apply {
-            text = "Prepare a integração de geração de testes MasterFlix e STV+."
-            textSize = 13f
-            setTextColor(Color.rgb(75, 88, 102))
-        })
-        testCenter.addView(actionButton("ABRIR CENTRAL DE TESTES") {
-            startActivity(Intent(this, TestCenterActivity::class.java))
-        }, fullWidth())
-        content.addView(testCenter, spaced())
 
         val header = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -178,6 +165,81 @@ class MainActivity : Activity() {
             setTextColor(Color.rgb(112, 124, 137))
             setPadding(dp(2), dp(12), dp(2), dp(8))
         })
+    }
+
+    private fun showSideMenu() {
+        val dialog = Dialog(this)
+        val menu = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(18), dp(30), dp(18), dp(18))
+            setBackgroundColor(Color.WHITE)
+        }
+        menu.addView(TextView(this).apply {
+            text = "OpenAtende"
+            textSize = 23f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(Color.rgb(18, 59, 93))
+        })
+        menu.addView(TextView(this).apply {
+            text = "MENU PRINCIPAL"
+            textSize = 11f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(Color.rgb(111, 126, 140))
+            setPadding(0, dp(22), 0, dp(8))
+        })
+        menu.addView(menuItem("⌂   Visão geral") { dialog.dismiss(); renderDashboard() })
+        menu.addView(TextView(this).apply {
+            text = "AUTOMAÇÕES"
+            textSize = 11f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(Color.rgb(111, 126, 140))
+            setPadding(dp(4), dp(22), 0, dp(8))
+        })
+        menu.addView(menuItem("▣   MasterFlix") {
+            dialog.dismiss()
+            startActivity(Intent(this, TestCenterActivity::class.java).putExtra(TestCenterActivity.EXTRA_PROVIDER, "masterflix"))
+        })
+        menu.addView(menuItem("▣   STV+") {
+            dialog.dismiss()
+            startActivity(Intent(this, TestCenterActivity::class.java).putExtra(TestCenterActivity.EXTRA_PROVIDER, "stv"))
+        })
+        menu.addView(TextView(this).apply {
+            text = "ATENDIMENTO"
+            textSize = 11f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(Color.rgb(111, 126, 140))
+            setPadding(dp(4), dp(22), 0, dp(8))
+        })
+        menu.addView(menuItem("☷   Gatilhos e respostas") {
+            dialog.dismiss()
+            content.post { content.smoothScrollTo(0, content.getChildAt(0).height) }
+        })
+        menu.addView(menuItem("Fechar menu") { dialog.dismiss() })
+        dialog.setContentView(menu)
+        dialog.window?.apply {
+            setBackgroundDrawableResource(android.R.color.transparent)
+            setLayout(dp(300), ViewGroup.LayoutParams.MATCH_PARENT)
+            setGravity(Gravity.START)
+            addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+            attributes = attributes.apply { dimAmount = 0.35f }
+        }
+        dialog.show()
+        dialog.window?.setLayout(dp(300), ViewGroup.LayoutParams.MATCH_PARENT)
+        dialog.window?.setGravity(Gravity.START)
+    }
+
+    private fun menuItem(label: String, action: () -> Unit) = Button(this).apply {
+        text = label
+        textSize = 15f
+        gravity = Gravity.START or Gravity.CENTER_VERTICAL
+        isAllCaps = false
+        setTextColor(Color.rgb(35, 55, 75))
+        background = rounded(Color.rgb(244, 247, 251), dp(10))
+        setPadding(dp(14), 0, dp(10), 0)
+        setOnClickListener { action() }
+        layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(50)).apply {
+            bottomMargin = dp(7)
+        }
     }
 
     private fun renderRuleCards(rules: List<ReplyRule>) {
