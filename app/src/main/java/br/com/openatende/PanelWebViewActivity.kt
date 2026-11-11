@@ -139,12 +139,36 @@ class PanelWebViewActivity : Activity() {
               };
               if (usernameField && !usernameField.value) setValue(usernameField, $username);
               if (!passwordField.value) setValue(passwordField, $password);
-              return 'credentials-filled';
+
+              // Never attempt to solve or bypass CAPTCHA / anti-bot challenges.
+              const pageText = (document.body?.innerText || '').toLowerCase();
+              const challengePresent =
+                !!document.querySelector('iframe[src*="captcha"], iframe[src*="recaptcha"], iframe[src*="hcaptcha"], [class*="captcha"], [id*="captcha"], [class*="challenge"], [id*="challenge"]') ||
+                /captcha|recaptcha|hcaptcha|cloudflare|verificação de segurança|sistema protegido contra bots|protected against bots/.test(pageText);
+              if (challengePresent) return 'security-check-required';
+
+              const continueButton = Array.from(document.querySelectorAll(
+                'button, input[type="submit"], [role="button"]'
+              )).find((el) => {
+                if (!visible(el) || el.disabled) return false;
+                const label = (el.innerText || el.value || el.getAttribute('aria-label') || '').trim().toLowerCase();
+                return label === 'continuar' || label === 'continue' || label === 'entrar' || label === 'login';
+              });
+              if (!continueButton) return 'credentials-filled';
+              if (continueButton.dataset.openAtendeAutoClicked === '1') return 'already-clicked';
+              continueButton.dataset.openAtendeAutoClicked = '1';
+              continueButton.click();
+              return 'continue-clicked';
             })();
         """.trimIndent()
         view.evaluateJavascript(script) { result ->
-            if (result == "\"credentials-filled\"") {
-                Toast.makeText(this, "Credenciais preenchidas. Confira e toque em Continuar; conclua qualquer verificação de segurança.", Toast.LENGTH_LONG).show()
+            when (result) {
+                "\"continue-clicked\"" ->
+                    Toast.makeText(this, "Credenciais preenchidas e botão Continuar acionado.", Toast.LENGTH_LONG).show()
+                "\"security-check-required\"" ->
+                    Toast.makeText(this, "Credenciais preenchidas. O painel solicitou verificação de segurança; conclua manualmente.", Toast.LENGTH_LONG).show()
+                "\"credentials-filled\"" ->
+                    Toast.makeText(this, "Credenciais preenchidas. Não foi possível identificar o botão Continuar nesta tela.", Toast.LENGTH_LONG).show()
             }
         }
     }
