@@ -1,10 +1,8 @@
 package br.com.openatende
 
 import android.app.Activity
-import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
-import android.net.Uri
 import android.os.Bundle
 import android.view.ViewGroup
 import android.widget.Button
@@ -131,7 +129,7 @@ class TestCenterActivity : Activity() {
         root.addView(modeGroup, panelParams())
 
         sectionTitle(root, "3. ACESSO AO PAINEL")
-        root.addView(bodyText("Conecte sua conta administrativa para preparar este módulo. O login será feito no navegador; o OpenAtende não coleta nem armazena sua senha nesta etapa. Se houver CAPTCHA ou verificação de segurança, conclua manualmente."))
+        root.addView(bodyText("Abra o painel dentro do próprio OpenAtende para entrar na sua conta. Se houver CAPTCHA ou verificação de segurança, conclua manualmente na tela interna."))
         val savedCredentials = PanelCredentialStore.load(this, selectedProvider)
         val usernameField = EditText(this).apply {
             hint = "Usuário do painel"
@@ -199,8 +197,8 @@ class TestCenterActivity : Activity() {
             setTextColor(Color.WHITE)
             background = panelButton()
             setOnClickListener {
-                val url = if (selectedProvider == PROVIDER_STV) STV_URL else MASTERFLIX_URL
-                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                startActivity(android.content.Intent(this@TestCenterActivity, PanelWebViewActivity::class.java)
+                    .putExtra(PanelWebViewActivity.EXTRA_PROVIDER, selectedProvider))
             }
         }, buttonParams())
 
@@ -277,7 +275,5 @@ class TestCenterActivity : Activity() {
         private const val MODE_ADULT = "adult"
         private const val KEY_PROVIDER = "provider"
         private const val KEY_MODE = "mode"
-        private const val MASTERFLIX_URL = "https://masterflix.sigmab.pro/#/sign-in?redirect=/dashboard"
-        private const val STV_URL = "https://stvmais.sigma.vin/#/sign-in?redirect=/dashboard"
     }
 }
