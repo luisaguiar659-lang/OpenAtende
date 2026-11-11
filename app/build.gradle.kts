@@ -3,6 +3,17 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
+val signingStorePath = System.getenv("OPENATENDE_KEYSTORE_PATH")
+val signingStorePassword = System.getenv("OPENATENDE_STORE_PASSWORD")
+val signingKeyAlias = System.getenv("OPENATENDE_KEY_ALIAS")
+val signingKeyPassword = System.getenv("OPENATENDE_KEY_PASSWORD")
+val hasOpenAtendeSigning = listOf(
+    signingStorePath,
+    signingStorePassword,
+    signingKeyAlias,
+    signingKeyPassword
+).all { !it.isNullOrBlank() }
+
 android {
     namespace = "br.com.openatende"
     compileSdk = 35
@@ -13,6 +24,31 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "0.1.0"
+    }
+
+    if (hasOpenAtendeSigning) {
+        signingConfigs {
+            create("openAtendeRelease") {
+                storeFile = file(signingStorePath!!)
+                storePassword = signingStorePassword
+                keyAlias = signingKeyAlias
+                keyPassword = signingKeyPassword
+            }
+        }
+    }
+
+    buildTypes {
+        getByName("debug") {
+            if (hasOpenAtendeSigning) {
+                signingConfig = signingConfigs.getByName("openAtendeRelease")
+            }
+        }
+        getByName("release") {
+            if (hasOpenAtendeSigning) {
+                signingConfig = signingConfigs.getByName("openAtendeRelease")
+            }
+            isMinifyEnabled = false
+        }
     }
 
     compileOptions {
