@@ -82,16 +82,25 @@ object ReplyRuleEngine {
     fun findMatchingRule(context: Context, message: String): ReplyRule? {
         val normalizedMessage = normalize(message)
         if (normalizedMessage.isBlank()) return null
-        return ReplyRuleStore.load(context).firstOrNull { rule ->
-            if (!rule.enabled || rule.trigger.isBlank()) false
-            else {
-                val trigger = normalize(rule.trigger)
-                when (rule.mode) {
-                    MatchMode.EXACT -> normalizedMessage == trigger
-                    MatchMode.CONTAINS -> normalizedMessage.contains(trigger)
-                }
+        val enabledRules = ReplyRuleStore.load(context).filter { it.enabled && it.trigger.isNotBlank() }
+
+        // Test commands must win over broad greeting/reply rules, regardless of
+        // the order in which the user created the rules.
+        fun matches(rule: ReplyRule): Boolean {
+            val trigger = normalize(rule.trigger)
+            return when (rule.mode) {
+                MatchMode.EXACT -> normalizedMessage == trigger
+                MatchMode.CONTAINS -> normalizedMessage.contains(trigger)
             }
         }
+
+        val testRules = enabledRules.filter { it.action != RuleAction.REPLY }
+        val replyRules = enabledRules.filter { it.action == RuleAction.REPLY }
+
+        return testRules.firstOrNull { it.mode == MatchMode.EXACT && matches(it) }
+            ?: testRules.firstOrNull { matches(it) }
+            ?: replyRules.firstOrNull { it.mode == MatchMode.EXACT && matches(it) }
+            ?: replyRules.firstOrNull { matches(it) }
     }
 
     fun findResponse(context: Context, message: String): String? {
