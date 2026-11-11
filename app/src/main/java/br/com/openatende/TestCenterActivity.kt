@@ -21,7 +21,9 @@ class TestCenterActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        selectedProvider = prefs.getString(KEY_PROVIDER, PROVIDER_MASTERFLIX) ?: PROVIDER_MASTERFLIX
+        selectedProvider = intent.getStringExtra(EXTRA_PROVIDER)
+            ?: prefs.getString(KEY_PROVIDER, PROVIDER_MASTERFLIX) ?: PROVIDER_MASTERFLIX
+        prefs.edit().putString(KEY_PROVIDER, selectedProvider).apply()
         selectedMode = prefs.getString(KEY_MODE, MODE_STANDARD) ?: MODE_STANDARD
 
         val scroll = android.widget.ScrollView(this).apply {
@@ -178,6 +180,7 @@ class TestCenterActivity : Activity() {
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
     companion object {
+        const val EXTRA_PROVIDER = "selected_provider"
         private const val PROVIDER_MASTERFLIX = "masterflix"
         private const val PROVIDER_STV = "stv"
         private const val MODE_STANDARD = "standard"
