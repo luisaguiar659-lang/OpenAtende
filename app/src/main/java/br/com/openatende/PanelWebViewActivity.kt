@@ -199,23 +199,42 @@ class PanelWebViewActivity : Activity() {
         val quotedLabel = org.json.JSONObject.quote(label)
         val script = """
             (function() {
-              const norm = s => (s || '').replace(/\\s+/g, ' ').trim().toUpperCase();
+              const norm = s => (s || '')
+                .normalize('NFD')
+                .replace(/[\\u0300-\\u036f]/g, '')
+                .toUpperCase()
+                .replace(/[^A-Z0-9]+/g, '');
               const visible = e => !!(e.offsetWidth || e.offsetHeight || e.getClientRects().length);
-              const target = $quotedLabel;
-              const items = Array.from(document.querySelectorAll('button,a,[role=button],input[type=button],input[type=submit]'));
-              const button = items.find(e => visible(e) && !e.disabled && norm(e.innerText || e.value || e.getAttribute('aria-label')) === target);
-              if (!button) return 'not-found';
-              button.click();
-              return 'clicked';
+              const target = norm($quotedLabel);
+              const aliases = target === 'TESTEADULTO'
+                ? ['TESTEADULTO', 'TESTEADULTOS']
+                : target === 'TESTESEMADULTO'
+                  ? ['TESTESEMADULTO', 'TESTESEMADULTOS']
+                  : [target];
+
+              // The provider panels render these actions as clickable list rows,
+              // not necessarily as HTML button elements. Search the rendered text
+              // and click the smallest matching element so the click bubbles to
+              // the panel's own event handler.
+              const candidates = Array.from(document.querySelectorAll('body *'))
+                .filter(e => visible(e) && !e.disabled)
+                .map(e => ({ e, text: norm(e.innerText || e.textContent || e.value || e.getAttribute('aria-label')) }))
+                .filter(x => x.text && aliases.some(a => x.text === a || x.text.startsWith(a)));
+              candidates.sort((a, b) => a.text.length - b.text.length);
+              const match = candidates[0]?.e;
+              if (!match) return 'not-found';
+              match.scrollIntoView({ block: 'center', inline: 'nearest' });
+              match.click();
+              return 'clicked:' + (match.innerText || match.textContent || '').trim().slice(0, 90);
             })();
         """.trimIndent()
         view.evaluateJavascript(script) { result ->
-            if (result == "\"clicked\"") {
+            if (result != null && result.startsWith("\"clicked:")) {
                 generationStarted = true
                 automationHandler.postDelayed({ scrollAndClickCopy(view) }, 3500L)
-                Toast.makeText(this, "Geração acionada. Aguardando o resultado.", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, "Opção '$label' acionada. Aguardando o resultado.", Toast.LENGTH_LONG).show()
             } else {
-                Toast.makeText(this, "Botão '$label' não encontrado. A automação foi pausada.", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, "Opção '$label' não encontrada na página. A automação foi pausada.", Toast.LENGTH_LONG).show()
             }
         }
     }
