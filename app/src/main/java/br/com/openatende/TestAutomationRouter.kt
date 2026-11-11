@@ -42,8 +42,9 @@ object TestAutomationRouter {
             .apply()
 
         try {
-            val launch = Intent(context, PanelWebViewActivity::class.java).apply {
-                putExtra(PanelWebViewActivity.EXTRA_PROVIDER, provider)
+            val launch = Intent(context, TestCenterActivity::class.java).apply {
+                putExtra(TestCenterActivity.EXTRA_PROVIDER, provider)
+                putExtra(TestCenterActivity.EXTRA_AUTO_OPEN_PANEL, true)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             }
             context.startActivity(launch)
