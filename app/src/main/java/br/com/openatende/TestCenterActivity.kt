@@ -191,7 +191,22 @@ class TestCenterActivity : Activity() {
             settings.loadsImagesAutomatically = true
             settings.allowFileAccess = false
             settings.allowContentAccess = false
-            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(330))
+            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(260))
+            isVerticalScrollBarEnabled = true
+            overScrollMode = android.view.View.OVER_SCROLL_IF_CONTENT_SCROLLS
+            setOnTouchListener { view, event ->
+                val parent = view.parent
+                when (event.actionMasked) {
+                    android.view.MotionEvent.ACTION_DOWN -> parent?.requestDisallowInterceptTouchEvent(true)
+                    android.view.MotionEvent.ACTION_MOVE -> {
+                        val deltaY = event.y - event.getHistoricalY(0)
+                        val canWebScroll = if (deltaY > 0) view.canScrollVertically(-1) else view.canScrollVertically(1)
+                        parent?.requestDisallowInterceptTouchEvent(canWebScroll)
+                    }
+                    android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> parent?.requestDisallowInterceptTouchEvent(false)
+                }
+                false
+            }
             webChromeClient = object : android.webkit.WebChromeClient() {
                 override fun onProgressChanged(view: android.webkit.WebView, newProgress: Int) {
                     embeddedProgress.progress = newProgress
