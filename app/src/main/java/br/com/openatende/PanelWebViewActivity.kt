@@ -150,7 +150,7 @@ class PanelWebViewActivity : Activity() {
               const pageText = (document.body?.innerText || '').toLowerCase();
               const challengePresent =
                 !!document.querySelector('iframe[src*="captcha"], iframe[src*="recaptcha"], iframe[src*="hcaptcha"], [class*="captcha"], [id*="captcha"], [class*="challenge"], [id*="challenge"]') ||
-                /captcha|recaptcha|hcaptcha|cloudflare|verificação de segurança|sistema protegido contra bots|protected against bots/.test(pageText);
+                /captcha|recaptcha|hcaptcha|cloudflare/.test(pageText);
               if (challengePresent) return 'security-check-required';
 
               const continueButton = Array.from(document.querySelectorAll(
@@ -257,7 +257,15 @@ class PanelWebViewActivity : Activity() {
                     .putString("last_copied_provider", intent.getStringExtra(EXTRA_PROVIDER))
                     .putLong("last_copied_at", System.currentTimeMillis())
                     .apply()
-                runOnUiThread { Toast.makeText(this, "Dados do teste capturados. Próxima etapa: enviar ao cliente.", Toast.LENGTH_LONG).show() }
+                val sent = TestAutomationRouter.complete(this, copiedText)
+                runOnUiThread {
+                    Toast.makeText(
+                        this,
+                        if (sent) "Teste capturado e enviado ao cliente no WhatsApp."
+                        else "Teste capturado, mas não foi possível responder automaticamente nesta notificação.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
             }
         }
         clipboardListener = listener
