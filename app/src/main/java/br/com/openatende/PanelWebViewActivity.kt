@@ -22,6 +22,11 @@ import android.widget.Toast
 class PanelWebViewActivity : Activity() {
     private lateinit var webView: WebView
     private lateinit var progress: ProgressBar
+    private val automationHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var loginSubmitted = false
+    private var generationStarted = false
+    private var copyStarted = false
+    private var clipboardListener: android.content.ClipboardManager.OnPrimaryClipChangedListener? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -90,7 +95,7 @@ class PanelWebViewActivity : Activity() {
             override fun onPageFinished(view: WebView, url: String) {
                 super.onPageFinished(view, url)
                 if (android.net.Uri.parse(url).host != allowedHost) return
-                fillSavedCredentials(view, provider)
+                if (loginSubmitted) scheduleTestGeneration(view, provider) else fillSavedCredentials(view, provider)
             }
 
             override fun onReceivedSslError(view: WebView, handler: SslErrorHandler, error: SslError) {
@@ -108,6 +113,7 @@ class PanelWebViewActivity : Activity() {
             ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f
         ))
         setContentView(root)
+        registerClipboardCapture()
         webView.loadUrl(target)
     }
 
@@ -164,7 +170,9 @@ class PanelWebViewActivity : Activity() {
         view.evaluateJavascript(script) { result ->
             when (result) {
                 "\"continue-clicked\"" ->
-                    Toast.makeText(this, "Credenciais preenchidas e botão Continuar acionado.", Toast.LENGTH_LONG).show()
+                    loginSubmitted = true
+                    Toast.makeText(this, "Login enviado. Aguardando 3,5 segundos.", Toast.LENGTH_LONG).show()
+                    scheduleTestGeneration(view, provider)
                 "\"security-check-required\"" ->
                     Toast.makeText(this, "Credenciais preenchidas. O painel solicitou verificação de segurança; conclua manualmente.", Toast.LENGTH_LONG).show()
                 "\"credentials-filled\"" ->
@@ -173,11 +181,98 @@ class PanelWebViewActivity : Activity() {
         }
     }
 
+    private fun scheduleTestGeneration(view: WebView, provider: String) {
+        if (generationStarted || isFinishing || isDestroyed) return
+        automationHandler.postDelayed({
+            if (!isFinishing && !isDestroyed && !generationStarted) clickGenerationButton(view, provider)
+        }, 3500L)
+    }
+
+    private fun clickGenerationButton(view: WebView, provider: String) {
+        val mode = getSharedPreferences("test_automation", MODE_PRIVATE).getString("mode", "standard") ?: "standard"
+        val label = when {
+            provider == "masterflix" -> "MASTERFLIX TESTE COMPLETO 1H"
+            mode == "adult" -> "TESTE + ADULTO"
+            else -> "TESTE SEM ADULTO"
+        }
+        val quotedLabel = org.json.JSONObject.quote(label)
+        val script = """
+            (function() {
+              const norm = s => (s || '').replace(/\\s+/g, ' ').trim().toUpperCase();
+              const visible = e => !!(e.offsetWidth || e.offsetHeight || e.getClientRects().length);
+              const target = $quotedLabel;
+              const items = Array.from(document.querySelectorAll('button,a,[role=button],input[type=button],input[type=submit]'));
+              const button = items.find(e => visible(e) && !e.disabled && norm(e.innerText || e.value || e.getAttribute('aria-label')) === target);
+              if (!button) return 'not-found';
+              button.click();
+              return 'clicked';
+            })();
+        """.trimIndent()
+        view.evaluateJavascript(script) { result ->
+            if (result == "\"clicked\"") {
+                generationStarted = true
+                automationHandler.postDelayed({ scrollAndClickCopy(view) }, 3500L)
+                Toast.makeText(this, "Geração acionada. Aguardando o resultado.", Toast.LENGTH_LONG).show()
+            } else {
+                Toast.makeText(this, "Botão '$label' não encontrado. A automação foi pausada.", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    private fun scrollAndClickCopy(view: WebView) {
+        if (copyStarted || isFinishing || isDestroyed) return
+        val script = """
+            (function() {
+              window.scrollTo(0, document.documentElement.scrollHeight);
+              const norm = s => (s || '').replace(/\\s+/g, ' ').trim().toUpperCase();
+              const visible = e => !!(e.offsetWidth || e.offsetHeight || e.getClientRects().length);
+              const items = Array.from(document.querySelectorAll('button,a,[role=button]'));
+              const button = items.find(e => visible(e) && !e.disabled && norm(e.innerText || e.getAttribute('aria-label')) === 'COPIAR');
+              if (!button) return 'not-found';
+              button.click();
+              return 'clicked';
+            })();
+        """.trimIndent()
+        view.evaluateJavascript(script) { result ->
+            if (result == "\"clicked\"") {
+                copyStarted = true
+                Toast.makeText(this, "COPIAR acionado. Capturando a área de transferência.", Toast.LENGTH_LONG).show()
+            } else {
+                Toast.makeText(this, "Botão COPIAR não encontrado. Nenhuma mensagem foi enviada.", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    private fun registerClipboardCapture() {
+        val clipboard = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+        val listener = android.content.ClipboardManager.OnPrimaryClipChangedListener {
+            val clip = clipboard.primaryClip ?: return@OnPrimaryClipChangedListener
+            val copiedText = (0 until clip.itemCount).joinToString("\\n") { index ->
+                clip.getItemAt(index).coerceToText(this).toString()
+            }.trim()
+            if (copiedText.isNotBlank()) {
+                getSharedPreferences("test_automation", MODE_PRIVATE).edit()
+                    .putString("last_copied_test", copiedText)
+                    .putString("last_copied_provider", intent.getStringExtra(EXTRA_PROVIDER))
+                    .putLong("last_copied_at", System.currentTimeMillis())
+                    .apply()
+                runOnUiThread { Toast.makeText(this, "Dados do teste capturados. Próxima etapa: enviar ao cliente.", Toast.LENGTH_LONG).show() }
+            }
+        }
+        clipboardListener = listener
+        clipboard.addPrimaryClipChangedListener(listener)
+    }
+
     override fun onBackPressed() {
         if (::webView.isInitialized && webView.canGoBack()) webView.goBack() else super.onBackPressed()
     }
 
     override fun onDestroy() {
+        automationHandler.removeCallbacksAndMessages(null)
+        clipboardListener?.let { listener ->
+            val clipboard = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+            clipboard.removePrimaryClipChangedListener(listener)
+        }
         if (::webView.isInitialized) {
             webView.stopLoading()
             webView.destroy()
