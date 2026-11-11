@@ -163,7 +163,7 @@ class MainActivity : Activity() {
         }
         val trigger = EditText(this).apply {
             hint = "Ex.: preço, horário ou endereço"
-            singleLine = true
+            isSingleLine = true
         }
         val response = EditText(this).apply {
             hint = "Digite a resposta automática"
