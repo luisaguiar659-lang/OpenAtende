@@ -22,10 +22,35 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.9"
-      - name: Build debug APK
-        run: gradle :app:assembleDebug
-      - name: Upload APK
+      - name: Prepare persistent signing key
+        env:
+          OPENATENDE_KEYSTORE_BASE64: ${{ secrets.OPENATENDE_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$OPENATENDE_KEYSTORE_BASE64" ]; then
+            echo "$OPENATENDE_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/openatende-release.jks"
+            echo "OPENATENDE_KEYSTORE_PATH=$RUNNER_TEMP/openatende-release.jks" >> "$GITHUB_ENV"
+            echo "HAS_OPENATENDE_SIGNING=true" >> "$GITHUB_ENV"
+          else
+            echo "HAS_OPENATENDE_SIGNING=false" >> "$GITHUB_ENV"
+            echo "Signing secrets not configured; building a temporary debug-signed APK."
+          fi
+      - name: Build APKs
+        env:
+          OPENATENDE_STORE_PASSWORD: ${{ secrets.OPENATENDE_STORE_PASSWORD }}
+          OPENATENDE_KEY_ALIAS: ${{ secrets.OPENATENDE_KEY_ALIAS }}
+          OPENATENDE_KEY_PASSWORD: ${{ secrets.OPENATENDE_KEY_PASSWORD }}
+        run: |
+          if [ "$HAS_OPENATENDE_SIGNING" = "true" ]; then
+            gradle :app:assembleDebug :app:assembleRelease
+          else
+            gradle :app:assembleDebug
+          fi
+      - name: Upload APKs
         uses: actions/upload-artifact@v4
         with:
-          name: OpenAtende-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: OpenAtende-apks
+          path: |
+            app/build/outputs/apk/debug/app-debug.apk
+            app/build/outputs/apk/release/app-release-unsigned.apk
+            app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: warn
