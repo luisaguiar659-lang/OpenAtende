@@ -18,7 +18,12 @@ class AutoReplyNotificationListener : NotificationListenerService() {
 
         val notification = sbn.notification ?: return
         val message = extractMessage(notification) ?: return
-        val response = ReplyRuleEngine.findResponse(this, message) ?: return
+        val matchedRule = ReplyRuleEngine.findMatchingRule(this, message) ?: return
+        if (matchedRule.action != RuleAction.REPLY) {
+            TestAutomationRouter.queue(this, matchedRule, message)
+            return
+        }
+        val response = matchedRule.response.takeIf { it.isNotBlank() } ?: return
         if (!NotificationAccess.isEnabled(this)) return
 
         val sentKey = "${sbn.key}:${sbn.postTime}:$message"
