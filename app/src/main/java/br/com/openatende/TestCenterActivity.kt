@@ -37,20 +37,48 @@ class TestCenterActivity : Activity() {
         scroll.addView(root)
         setContentView(scroll)
 
+        val providerName = if (selectedProvider == PROVIDER_STV) "STV+" else "MasterFlix"
         root.addView(TextView(this).apply {
-            text = "Central de Testes"
-            textSize = 27f
+            text = "AUTOMAÇÃO"
+            textSize = 11f
             typeface = Typeface.DEFAULT_BOLD
-            setTextColor(Color.rgb(18, 59, 93))
+            setTextColor(Color.rgb(31, 125, 83))
         })
         root.addView(TextView(this).apply {
-            text = "Configure a rotina que será usada quando o cliente pedir uma demonstração."
+            text = providerName
+            textSize = 29f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(Color.rgb(18, 59, 93))
+            setPadding(0, dp(4), 0, 0)
+        })
+        root.addView(TextView(this).apply {
+            text = "Central de configuração do módulo de testes."
             textSize = 14f
             setTextColor(Color.rgb(93, 108, 124))
             setPadding(0, dp(5), 0, dp(18))
         })
 
-        sectionTitle(root, "1. ESCOLHA O SERVIDOR")
+        val providerCard = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(16), dp(14), dp(16), dp(14))
+            background = panelBackground()
+        }
+        providerCard.addView(TextView(this).apply {
+            text = "MÓDULO SELECIONADO"
+            textSize = 11f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(Color.rgb(111, 126, 140))
+        })
+        providerCard.addView(TextView(this).apply {
+            text = providerName
+            textSize = 20f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(Color.rgb(24, 75, 111))
+            setPadding(0, dp(5), 0, 0)
+        })
+        root.addView(providerCard, panelParams())
+
+        sectionTitle(root, "1. SERVIDOR")
         lateinit var modeGroup: RadioGroup
         val providers = RadioGroup(this).apply { orientation = RadioGroup.VERTICAL }
         val master = RadioButton(this).apply {
@@ -76,8 +104,8 @@ class TestCenterActivity : Activity() {
         }
         root.addView(providers, panelParams())
 
-        sectionTitle(root, "2. OPÇÕES DO TESTE")
-        root.addView(bodyText("Validade padrão do teste: 1 hora. Essa duração será utilizada automaticamente, sem precisar escolher."))
+        sectionTitle(root, "2. CONFIGURAÇÃO DO TESTE")
+        root.addView(bodyText("Validade definida automaticamente: 1 hora. Não é necessário escolher a duração."))
 
         modeGroup = RadioGroup(this).apply { orientation = RadioGroup.VERTICAL }
         val withAdults = RadioButton(this).apply {
@@ -101,10 +129,10 @@ class TestCenterActivity : Activity() {
         }
         root.addView(modeGroup, panelParams())
 
-        sectionTitle(root, "3. PREPARAR SESSÃO")
-        root.addView(bodyText("Faça o login no painel escolhido. O OpenAtende não salva sua senha: a sessão fica sob seu controle. Se aparecer uma verificação de segurança, conclua manualmente no próprio painel."))
+        sectionTitle(root, "3. ACESSO AO PAINEL")
+        root.addView(bodyText("Conecte sua conta administrativa para preparar este módulo. O login será feito no navegador; o OpenAtende não coleta nem armazena sua senha nesta etapa. Se houver CAPTCHA ou verificação de segurança, conclua manualmente."))
         root.addView(Button(this).apply {
-            text = "ABRIR PAINEL E FAZER LOGIN"
+            text = "ABRIR $providerName E FAZER LOGIN"
             isAllCaps = false
             setTextColor(Color.WHITE)
             background = panelButton()
@@ -120,13 +148,13 @@ class TestCenterActivity : Activity() {
             background = panelBackground()
         }
         status.addView(TextView(this).apply {
-            text = "STATUS DA AUTOMAÇÃO"
+            text = "STATUS DE $providerName"
             textSize = 12f
             typeface = Typeface.DEFAULT_BOLD
             setTextColor(Color.rgb(111, 126, 140))
         })
         status.addView(TextView(this).apply {
-            text = "Configuração salva neste aparelho. A execução automática da geração e o envio das credenciais ainda estão em desenvolvimento."
+            text = "Preferências deste módulo salvas neste aparelho. Login reconhecido: ainda não conectado. Geração automática e envio das credenciais: em desenvolvimento."
             textSize = 13f
             setTextColor(Color.rgb(54, 68, 82))
             setPadding(0, dp(7), 0, 0)
@@ -134,7 +162,7 @@ class TestCenterActivity : Activity() {
         root.addView(status, panelParams())
 
         root.addView(Button(this).apply {
-            text = "VOLTAR AO PAINEL"
+            text = "VOLTAR AO OPENATENDE"
             isAllCaps = false
             setTextColor(Color.WHITE)
             background = panelButton()
