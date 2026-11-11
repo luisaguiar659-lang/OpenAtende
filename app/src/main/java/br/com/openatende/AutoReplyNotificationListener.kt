@@ -37,7 +37,10 @@ class AutoReplyNotificationListener : NotificationListenerService() {
 
         try {
             action.actionIntent.send(this, 0, fillInIntent)
-            prefs.edit().putString("last_reply_key", sentKey)\n                .putInt(MainActivity.KEY_SENT_COUNT, prefs.getInt(MainActivity.KEY_SENT_COUNT, 0) + 1)\n                .apply()
+            prefs.edit()
+                .putString("last_reply_key", sentKey)
+                .putInt(MainActivity.KEY_SENT_COUNT, prefs.getInt(MainActivity.KEY_SENT_COUNT, 0) + 1)
+                .apply()
             Log.i(TAG, "Resposta automática enviada.")
         } catch (error: Exception) {
             Log.e(TAG, "Falha ao responder pela notificação.", error)
