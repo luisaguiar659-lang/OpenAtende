@@ -7,12 +7,10 @@ import android.graphics.Typeface
 import android.net.Uri
 import android.os.Bundle
 import android.view.ViewGroup
-import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.RadioButton
 import android.widget.RadioGroup
-import android.widget.Spinner
 import android.widget.TextView
 
 class TestCenterActivity : Activity() {
@@ -77,21 +75,7 @@ class TestCenterActivity : Activity() {
         root.addView(providers, panelParams())
 
         sectionTitle(root, "2. OPÇÕES DO TESTE")
-        val durationLabel = bodyText("Duração desejada")
-        root.addView(durationLabel)
-        val durations = Spinner(this).apply {
-            adapter = ArrayAdapter(this@TestCenterActivity, android.R.layout.simple_spinner_dropdown_item,
-                listOf("1 dia", "2 dias", "3 dias", "7 dias"))
-            val saved = prefs.getString(KEY_DURATION, "1 dia") ?: "1 dia"
-            setSelection((0 until adapter.count).firstOrNull { adapter.getItem(it) == saved } ?: 0)
-            onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
-                override fun onNothingSelected(parent: android.widget.AdapterView<*>?) = Unit
-                override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: android.view.View?, position: Int, id: Long) {
-                    prefs.edit().putString(KEY_DURATION, getItemAtPosition(position).toString()).apply()
-                }
-            }
-        }
-        root.addView(durations, panelParams())
+        root.addView(bodyText("Validade padrão do teste: 1 hora. Essa duração será utilizada automaticamente, sem precisar escolher."))
 
         modeGroup = RadioGroup(this).apply { orientation = RadioGroup.VERTICAL }
         val withAdults = RadioButton(this).apply {
@@ -200,7 +184,6 @@ class TestCenterActivity : Activity() {
         private const val MODE_ADULT = "adult"
         private const val KEY_PROVIDER = "provider"
         private const val KEY_MODE = "mode"
-        private const val KEY_DURATION = "duration"
         private const val MASTERFLIX_URL = "https://masterflix.sigmab.pro/#/sign-in?redirect=/dashboard"
         private const val STV_URL = "https://stvmais.sigma.vin/#/sign-in?redirect=/dashboard"
     }
