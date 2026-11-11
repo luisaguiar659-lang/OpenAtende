@@ -13,6 +13,8 @@ import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
+import android.widget.RadioButton
+import android.widget.RadioGroup
 import android.widget.ScrollView
 import android.widget.TextView
 
@@ -123,6 +125,13 @@ class MainActivity : Activity() {
                     setTextColor(Color.rgb(25, 61, 88))
                 })
                 item.addView(TextView(this).apply {
+                    text = "MODO: " + if (rule.mode == MatchMode.CONTAINS) "CONTÉM A PALAVRA/ FRASE" else "MENSAGEM EXATA"
+                    textSize = 12f
+                    typeface = Typeface.DEFAULT_BOLD
+                    setTextColor(Color.rgb(31, 125, 83))
+                    setPadding(0, dp(6), 0, 0)
+                })
+                item.addView(TextView(this).apply {
                     text = "RESPONDER: ${rule.response}"
                     textSize = 14f
                     setTextColor(Color.rgb(75, 88, 102))
@@ -165,6 +174,23 @@ class MainActivity : Activity() {
             hint = "Ex.: preço, horário ou endereço"
             isSingleLine = true
         }
+        val modeGroup = RadioGroup(this).apply {
+            orientation = RadioGroup.VERTICAL
+        }
+        val containsOption = RadioButton(this).apply {
+            id = 1
+            text = "Contém a palavra ou frase"
+            textSize = 14f
+        }
+        val exactOption = RadioButton(this).apply {
+            id = 2
+            text = "Mensagem exatamente igual"
+            textSize = 14f
+        }
+        modeGroup.addView(containsOption)
+        modeGroup.addView(exactOption)
+        modeGroup.check(containsOption.id)
+
         val response = EditText(this).apply {
             hint = "Digite a resposta automática"
             minLines = 3
@@ -172,6 +198,12 @@ class MainActivity : Activity() {
         }
         form.addView(TextView(this).apply { text = "Palavra ou frase para identificar"; textSize = 13f })
         form.addView(trigger)
+        form.addView(TextView(this).apply {
+            text = "Como identificar a mensagem?"
+            textSize = 13f
+            setPadding(0, dp(12), 0, 0)
+        })
+        form.addView(modeGroup)
         form.addView(TextView(this).apply {
             text = "Resposta que será enviada"
             textSize = 13f
@@ -191,7 +223,8 @@ class MainActivity : Activity() {
                 if (keyword.isBlank()) trigger.error = "Informe uma palavra ou frase"
                 else if (answer.isBlank()) response.error = "Informe a resposta"
                 else {
-                    ReplyRuleStore.add(this, ReplyRule(keyword, answer, MatchMode.CONTAINS))
+                    val selectedMode = if (modeGroup.checkedRadioButtonId == exactOption.id) MatchMode.EXACT else MatchMode.CONTAINS
+                    ReplyRuleStore.add(this, ReplyRule(keyword, answer, selectedMode))
                     dialog.dismiss()
                     renderDashboard()
                 }
