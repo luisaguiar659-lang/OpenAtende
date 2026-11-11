@@ -97,6 +97,25 @@ class MainActivity : Activity() {
         }, fullWidth())
         content.addView(control, spaced())
 
+        val testCenter = card()
+        testCenter.addView(sectionLabel("AUTOMAÇÃO COMERCIAL"))
+        testCenter.addView(TextView(this).apply {
+            text = "Central de Testes"
+            textSize = 18f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(Color.rgb(25, 61, 88))
+            setPadding(0, dp(6), 0, dp(4))
+        })
+        testCenter.addView(TextView(this).apply {
+            text = "Prepare a integração de geração de testes MasterFlix e STV+."
+            textSize = 13f
+            setTextColor(Color.rgb(75, 88, 102))
+        })
+        testCenter.addView(actionButton("ABRIR CENTRAL DE TESTES") {
+            startActivity(Intent(this, TestCenterActivity::class.java))
+        }, fullWidth())
+        content.addView(testCenter, spaced())
+
         val header = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
