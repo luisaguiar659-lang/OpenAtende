@@ -5,12 +5,14 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 enum class MatchMode { CONTAINS, EXACT }
+enum class RuleAction { REPLY, TEST_MASTERFLIX, TEST_STV }
 
 data class ReplyRule(
     val trigger: String,
     val response: String,
     val mode: MatchMode,
-    val enabled: Boolean = true
+    val enabled: Boolean = true,
+    val action: RuleAction = RuleAction.REPLY
 )
 
 object ReplyRuleStore {
@@ -28,7 +30,8 @@ object ReplyRuleStore {
                     item.optString("trigger"),
                     item.optString("response"),
                     runCatching { MatchMode.valueOf(item.optString("mode", "CONTAINS")) }.getOrDefault(MatchMode.CONTAINS),
-                    item.optBoolean("enabled", true)
+                    item.optBoolean("enabled", true),
+                    runCatching { RuleAction.valueOf(item.optString("action", "REPLY")) }.getOrDefault(RuleAction.REPLY)
                 ))
             }
             result
@@ -67,6 +70,7 @@ object ReplyRuleStore {
                 put("response", rule.response)
                 put("mode", rule.mode.name)
                 put("enabled", rule.enabled)
+                put("action", rule.action.name)
             })
         }
         context.getSharedPreferences(MainActivity.PREFS, Context.MODE_PRIVATE)
@@ -75,11 +79,11 @@ object ReplyRuleStore {
 }
 
 object ReplyRuleEngine {
-    fun findResponse(context: Context, message: String): String? {
+    fun findMatchingRule(context: Context, message: String): ReplyRule? {
         val normalizedMessage = normalize(message)
         if (normalizedMessage.isBlank()) return null
         return ReplyRuleStore.load(context).firstOrNull { rule ->
-            if (!rule.enabled || rule.trigger.isBlank() || rule.response.isBlank()) false
+            if (!rule.enabled || rule.trigger.isBlank()) false
             else {
                 val trigger = normalize(rule.trigger)
                 when (rule.mode) {
@@ -87,7 +91,12 @@ object ReplyRuleEngine {
                     MatchMode.CONTAINS -> normalizedMessage.contains(trigger)
                 }
             }
-        }?.response
+        }
+    }
+
+    fun findResponse(context: Context, message: String): String? {
+        val rule = findMatchingRule(context, message) ?: return null
+        return if (rule.action == RuleAction.REPLY) rule.response.takeIf { it.isNotBlank() } else null
     }
 
     private fun normalize(value: String): String =
