@@ -239,7 +239,11 @@ class MainActivity : Activity() {
                 setPadding(0, dp(6), 0, 0)
             })
             item.addView(TextView(this).apply {
-                text = "RESPONDER: ${rule.response}"
+                text = when (rule.action) {
+                    RuleAction.REPLY -> "RESPOSTA: ${rule.response}"
+                    RuleAction.TEST_MASTERFLIX -> "AÇÃO: GERAR TESTE NO MASTERFLIX (1 HORA)"
+                    RuleAction.TEST_STV -> "AÇÃO: GERAR TESTE NO STV+ (1 HORA)"
+                }
                 textSize = 14f
                 setTextColor(Color.rgb(75, 88, 102))
                 setPadding(0, dp(8), 0, dp(10))
@@ -280,6 +284,19 @@ class MainActivity : Activity() {
             isSingleLine = true
             setText(existing?.trigger.orEmpty())
         }
+        val actionGroup = RadioGroup(this).apply { orientation = RadioGroup.VERTICAL }
+        val replyAction = RadioButton(this).apply { id = 10; text = "Enviar resposta automática" }
+        val masterAction = RadioButton(this).apply { id = 11; text = "Gerar teste no MasterFlix (1 hora)" }
+        val stvAction = RadioButton(this).apply { id = 12; text = "Gerar teste no STV+ (1 hora)" }
+        actionGroup.addView(replyAction)
+        actionGroup.addView(masterAction)
+        actionGroup.addView(stvAction)
+        actionGroup.check(when (existing?.action ?: RuleAction.REPLY) {
+            RuleAction.REPLY -> replyAction.id
+            RuleAction.TEST_MASTERFLIX -> masterAction.id
+            RuleAction.TEST_STV -> stvAction.id
+        })
+
         val modeGroup = RadioGroup(this).apply {
             orientation = RadioGroup.VERTICAL
         }
@@ -329,14 +346,23 @@ class MainActivity : Activity() {
                 val keyword = trigger.text.toString().trim()
                 val answer = response.text.toString().trim()
                 if (keyword.isBlank()) trigger.error = "Informe uma palavra ou frase"
-                else if (answer.isBlank()) response.error = "Informe a resposta"
                 else {
                     val selectedMode = if (modeGroup.checkedRadioButtonId == exactOption.id) MatchMode.EXACT else MatchMode.CONTAINS
+                    val selectedAction = when (actionGroup.checkedRadioButtonId) {
+                        masterAction.id -> RuleAction.TEST_MASTERFLIX
+                        stvAction.id -> RuleAction.TEST_STV
+                        else -> RuleAction.REPLY
+                    }
+                    if (selectedAction == RuleAction.REPLY && answer.isBlank()) {
+                        response.error = "Informe a resposta automática"
+                        return@setOnClickListener
+                    }
                     val updatedRule = ReplyRule(
                         keyword,
                         answer,
                         selectedMode,
-                        existing?.enabled ?: true
+                        existing?.enabled ?: true,
+                        selectedAction
                     )
                     if (editIndex == null) {
                         ReplyRuleStore.add(this, updatedRule)
