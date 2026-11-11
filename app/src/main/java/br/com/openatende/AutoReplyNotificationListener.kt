@@ -21,7 +21,7 @@ class AutoReplyNotificationListener : NotificationListenerService() {
         val response = ReplyRuleEngine.findResponse(this, message) ?: return
         if (!NotificationAccess.isEnabled(this)) return
 
-        val sentKey = "${sbn.key}:$message"
+        val sentKey = "${sbn.key}:${sbn.postTime}:$message"
         if (prefs.getString("last_reply_key", null) == sentKey) return
 
         val replyAction = notification.actions?.firstNotNullOfOrNull { action ->
