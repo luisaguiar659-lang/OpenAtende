@@ -137,6 +137,9 @@ class MainActivity : Activity() {
                     setTextColor(Color.rgb(75, 88, 102))
                     setPadding(0, dp(8), 0, dp(10))
                 })
+                item.addView(actionButton("EDITAR RESPOSTA") {
+                    showRuleDialog(index)
+                }, fullWidth())
                 val actions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
                 actions.addView(actionButton(if (rule.enabled) "ATIVA" else "PAUSADA") {
                     ReplyRuleStore.update(this@MainActivity, index, rule.copy(enabled = !rule.enabled))
@@ -165,7 +168,12 @@ class MainActivity : Activity() {
         })
     }
 
-    private fun showAddRuleDialog() {
+    private fun showAddRuleDialog() = showRuleDialog(null)
+
+    private fun showRuleDialog(editIndex: Int?) {
+        val existing = editIndex?.let { ReplyRuleStore.load(this).getOrNull(it) }
+        if (editIndex != null && existing == null) return
+
         val form = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(20), dp(8), dp(20), 0)
@@ -173,6 +181,7 @@ class MainActivity : Activity() {
         val trigger = EditText(this).apply {
             hint = "Ex.: preço, horário ou endereço"
             isSingleLine = true
+            setText(existing?.trigger.orEmpty())
         }
         val modeGroup = RadioGroup(this).apply {
             orientation = RadioGroup.VERTICAL
@@ -189,12 +198,13 @@ class MainActivity : Activity() {
         }
         modeGroup.addView(containsOption)
         modeGroup.addView(exactOption)
-        modeGroup.check(containsOption.id)
+        modeGroup.check(if (existing?.mode == MatchMode.EXACT) exactOption.id else containsOption.id)
 
         val response = EditText(this).apply {
             hint = "Digite a resposta automática"
             minLines = 3
             gravity = Gravity.TOP
+            setText(existing?.response.orEmpty())
         }
         form.addView(TextView(this).apply { text = "Palavra ou frase para identificar"; textSize = 13f })
         form.addView(trigger)
@@ -210,11 +220,12 @@ class MainActivity : Activity() {
             setPadding(0, dp(12), 0, 0)
         })
         form.addView(response)
+
         val dialog = AlertDialog.Builder(this)
-            .setTitle("Nova resposta automática")
+            .setTitle(if (existing == null) "Nova resposta automática" else "Editar resposta automática")
             .setView(form)
             .setNegativeButton("Cancelar", null)
-            .setPositiveButton("Salvar", null)
+            .setPositiveButton(if (existing == null) "Salvar" else "Atualizar", null)
             .create()
         dialog.setOnShowListener {
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
@@ -224,7 +235,17 @@ class MainActivity : Activity() {
                 else if (answer.isBlank()) response.error = "Informe a resposta"
                 else {
                     val selectedMode = if (modeGroup.checkedRadioButtonId == exactOption.id) MatchMode.EXACT else MatchMode.CONTAINS
-                    ReplyRuleStore.add(this, ReplyRule(keyword, answer, selectedMode))
+                    val updatedRule = ReplyRule(
+                        keyword,
+                        answer,
+                        selectedMode,
+                        existing?.enabled ?: true
+                    )
+                    if (editIndex == null) {
+                        ReplyRuleStore.add(this, updatedRule)
+                    } else {
+                        ReplyRuleStore.update(this, editIndex, updatedRule)
+                    }
                     dialog.dismiss()
                     renderDashboard()
                 }
