@@ -9,9 +9,9 @@ import android.view.ViewGroup
 import android.webkit.SafeBrowsingResponse
 import android.webkit.SslErrorHandler
 import android.webkit.WebChromeClient
+import android.webkit.WebViewClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
-import android.webkit.WebViewClient
 import android.net.http.SslError
 import android.widget.Button
 import android.widget.LinearLayout
@@ -87,6 +87,12 @@ class PanelWebViewActivity : Activity() {
                 return uri.scheme != "https" || uri.host != allowedHost
             }
 
+            override fun onPageFinished(view: WebView, url: String) {
+                super.onPageFinished(view, url)
+                if (android.net.Uri.parse(url).host != allowedHost) return
+                fillSavedCredentials(view, provider)
+            }
+
             override fun onReceivedSslError(view: WebView, handler: SslErrorHandler, error: SslError) {
                 handler.cancel()
                 Toast.makeText(this@PanelWebViewActivity, "Conexão segura não validada. A navegação foi bloqueada.", Toast.LENGTH_LONG).show()
@@ -103,6 +109,44 @@ class PanelWebViewActivity : Activity() {
         ))
         setContentView(root)
         webView.loadUrl(target)
+    }
+
+    private fun fillSavedCredentials(view: WebView, provider: String) {
+        val credentials = try {
+            PanelCredentialStore.load(this, provider)
+        } catch (_: Exception) {
+            null
+        } ?: return
+
+        val username = org.json.JSONObject.quote(credentials.username)
+        val password = org.json.JSONObject.quote(credentials.password)
+        val script = """
+            (function() {
+              const visible = (el) => !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+              const passwordField = Array.from(document.querySelectorAll('input[type="password"]')).find(visible);
+              if (!passwordField) return 'no-login-form';
+              const usernameField = Array.from(document.querySelectorAll(
+                'input[type="email"], input[autocomplete="username"], input[type="text"]'
+              )).find(visible);
+              const setValue = (el, value) => {
+                if (!el) return;
+                const setter = Object.getOwnPropertyDescriptor(
+                  window.HTMLInputElement.prototype, 'value'
+                ).set;
+                setter.call(el, value);
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+                el.dispatchEvent(new Event('change', { bubbles: true }));
+              };
+              if (usernameField && !usernameField.value) setValue(usernameField, $username);
+              if (!passwordField.value) setValue(passwordField, $password);
+              return 'credentials-filled';
+            })();
+        """.trimIndent()
+        view.evaluateJavascript(script) { result ->
+            if (result == "\"credentials-filled\"") {
+                Toast.makeText(this, "Credenciais preenchidas. Confira e toque em Continuar; conclua qualquer verificação de segurança.", Toast.LENGTH_LONG).show()
+            }
+        }
     }
 
     override fun onBackPressed() {
