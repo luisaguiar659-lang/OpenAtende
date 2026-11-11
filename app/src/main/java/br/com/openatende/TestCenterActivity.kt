@@ -233,6 +233,14 @@ class TestCenterActivity : Activity() {
             }
         }, buttonParams())
         root.addView(embeddedPanelBox, panelParams())
+        if (intent.getBooleanExtra(EXTRA_AUTO_OPEN_PANEL, false)) {
+            embeddedPanelBox.visibility = android.view.View.VISIBLE
+            embeddedWebView.post {
+                if (embeddedWebView.url == null) {
+                    embeddedWebView.loadUrl(if (selectedProvider == PROVIDER_STV) "https://stvmais.sigma.vin/#/sign-in?redirect=/dashboard" else "https://masterflix.sigmab.pro/#/sign-in?redirect=/dashboard")
+                }
+            }
+        }
 
         val status = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -379,6 +387,7 @@ class TestCenterActivity : Activity() {
 
     companion object {
         const val EXTRA_PROVIDER = "selected_provider"
+        const val EXTRA_AUTO_OPEN_PANEL = "auto_open_embedded_panel"
         private const val PROVIDER_MASTERFLIX = "masterflix"
         private const val PROVIDER_STV = "stv"
         private const val MODE_STANDARD = "standard"
