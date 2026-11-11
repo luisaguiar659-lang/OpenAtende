@@ -25,8 +25,11 @@ jobs:
       - name: Prepare persistent signing key
         env:
           OPENATENDE_KEYSTORE_BASE64: ${{ secrets.OPENATENDE_KEYSTORE_BASE64 }}
+          OPENATENDE_STORE_PASSWORD: ${{ secrets.OPENATENDE_STORE_PASSWORD }}
+          OPENATENDE_KEY_ALIAS: ${{ secrets.OPENATENDE_KEY_ALIAS }}
+          OPENATENDE_KEY_PASSWORD: ${{ secrets.OPENATENDE_KEY_PASSWORD }}
         run: |
-          if [ -n "$OPENATENDE_KEYSTORE_BASE64" ]; then
+          if [ -n "$OPENATENDE_KEYSTORE_BASE64" ] && [ -n "$OPENATENDE_STORE_PASSWORD" ] && [ -n "$OPENATENDE_KEY_ALIAS" ] && [ -n "$OPENATENDE_KEY_PASSWORD" ]; then
             echo "$OPENATENDE_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/openatende-release.jks"
             echo "OPENATENDE_KEYSTORE_PATH=$RUNNER_TEMP/openatende-release.jks" >> "$GITHUB_ENV"
             echo "HAS_OPENATENDE_SIGNING=true" >> "$GITHUB_ENV"
