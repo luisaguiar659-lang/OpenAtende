@@ -24,13 +24,14 @@ import android.text.TextWatcher
 
 class MainActivity : Activity() {
     private lateinit var content: LinearLayout
+    private lateinit var pageScroll: ScrollView
     private lateinit var ruleListContainer: LinearLayout
     private var ruleSearchQuery = ""
     private var ruleFilter = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val scroll = ScrollView(this).apply {
+        pageScroll = ScrollView(this).apply {
             setBackgroundColor(Color.rgb(244, 247, 251))
             isFillViewport = true
         }
@@ -38,8 +39,8 @@ class MainActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(20), dp(28), dp(20), dp(28))
         }
-        scroll.addView(content)
-        setContentView(scroll)
+        pageScroll.addView(content)
+        setContentView(pageScroll)
         renderDashboard()
     }
 
@@ -212,7 +213,7 @@ class MainActivity : Activity() {
         })
         menu.addView(menuItem("☷   Gatilhos e respostas") {
             dialog.dismiss()
-            content.post { content.smoothScrollTo(0, content.getChildAt(0).height) }
+            content.post { pageScroll.smoothScrollTo(0, content.getChildAt(0).height) }
         })
         menu.addView(menuItem("Fechar menu") { dialog.dismiss() })
         dialog.setContentView(menu)
